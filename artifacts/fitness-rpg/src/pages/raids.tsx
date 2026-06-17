@@ -69,13 +69,17 @@ function ActiveRaidCard({ raid }: { raid: BossRaid }) {
       { id: raid.id },
       {
         onSuccess: (data) => {
+          const gearLine = (data as any).gearDrop
+            ? ` · Loot: ${(data as any).gearDrop.name}`
+            : "";
           toast({
             title: data.rankedUp ? `⚔️ RANK UP! Now ${data.newRank}-Rank!` : "Raid Conquered!",
-            description: `+${data.xpEarned} XP, +${data.goldEarned} Gold${data.titleGranted ? `, Title: ${(data.titleGranted as any).name}` : ""}`,
+            description: `+${data.xpEarned} XP, +${data.goldEarned} Gold${data.titleGranted ? `, Title: ${(data.titleGranted as any).name}` : ""}${gearLine}`,
           });
           queryClient.invalidateQueries({ queryKey: ["/api/boss-raids"] });
           queryClient.invalidateQueries({ queryKey: ["/api/player"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/armory"] });
         },
       }
     );
@@ -151,28 +155,54 @@ function ActiveRaidCard({ raid }: { raid: BossRaid }) {
             {raid.lore && (
               <p className="text-[11px] text-muted-foreground italic mb-2 border-l-2 border-primary/20 pl-2">{raid.lore}</p>
             )}
-            {raid.tasks.map((task) => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskUpdate(task.id, task.completed)}
-                disabled={task.completed || updateTask.isPending || isExpired || isFailed || isClaimed}
-                className="w-full flex items-center gap-2 text-xs font-mono bg-black/20 p-2 rounded border border-border/30 hover:bg-black/40 transition-colors text-left disabled:cursor-default"
-              >
-                <div className={cn("w-4 h-4 rounded-sm border flex items-center justify-center shrink-0",
-                  task.completed ? "bg-green-500 border-green-500 text-white" : "border-muted-foreground"
-                )}>
-                  {task.completed && <CheckCircle className="w-3 h-3" />}
+            {raid.tasks.map((task) => {
+              const isManual = (task as any).taskType === "manual" || !(task as any).taskType;
+              const pct = task.targetValue ? Math.min(100, ((task.currentValue ?? 0) / task.targetValue) * 100) : (task.completed ? 100 : 0);
+              return (
+                <div
+                  key={task.id}
+                  className={cn(
+                    "w-full text-xs font-mono bg-black/20 p-2 rounded border border-border/30 text-left",
+                    isManual && !task.completed && !isExpired && !isFailed && !isClaimed && "cursor-pointer hover:bg-black/40 transition-colors"
+                  )}
+                  onClick={isManual && !task.completed && !isExpired && !isFailed && !isClaimed
+                    ? () => handleTaskUpdate(task.id, task.completed) : undefined}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {isManual ? (
+                      <div className={cn("w-4 h-4 rounded-sm border flex items-center justify-center shrink-0",
+                        task.completed ? "bg-green-500 border-green-500 text-white" : "border-muted-foreground"
+                      )}>
+                        {task.completed && <CheckCircle className="w-3 h-3" />}
+                      </div>
+                    ) : (
+                      <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center shrink-0 text-[8px]",
+                        task.completed ? "bg-green-500 border-green-500 text-white" : "border-primary/50 text-primary"
+                      )}>
+                        {task.completed ? <CheckCircle className="w-3 h-3" /> : "⚡"}
+                      </div>
+                    )}
+                    <span className={cn("flex-1", task.completed && "line-through text-muted-foreground")}>
+                      {task.description}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {task.currentValue ?? 0}/{task.targetValue ?? "?"} {task.unit}
+                    </span>
+                  </div>
+                  {!isManual && task.targetValue && (
+                    <div className="h-1 bg-black/40 rounded-full overflow-hidden ml-6">
+                      <div
+                        className={cn("h-full rounded-full transition-all", task.completed ? "bg-green-500" : "bg-primary")}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
+                  {!isManual && !task.completed && (
+                    <p className="text-[9px] text-primary/60 ml-6 mt-0.5">Auto-tracked</p>
+                  )}
                 </div>
-                <span className={cn("flex-1", task.completed && "line-through text-muted-foreground")}>
-                  {task.description}
-                </span>
-                {task.targetValue !== null && task.targetValue !== undefined && !task.completed && (
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {task.currentValue ?? 0}/{task.targetValue} {task.unit}
-                  </span>
-                )}
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 

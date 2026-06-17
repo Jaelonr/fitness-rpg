@@ -5,3 +5,4 @@ export * from "./training";
 export * from "./skills";
 export * from "./quests";
 export * from "./inventory";
+export * from "./rpg-gear";

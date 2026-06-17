@@ -29,63 +29,71 @@ Must only export from `./generated/api` (not `./generated/types`) since the type
 - monk: recovery + flexibility + rehabilitation
 - tactician: flat 1.05x on all categories
 
-**Why:** Class must affect server-side XP so it can't be faked from the frontend.
-
 ## Achievement check system
 
-`check_key` maps to player counters (`total_workouts`, `total_prs`, `total_quests`, `streak_days`, `gold`, `level`, `skills_unlocked`). The progression engine checks these automatically inside `applyXpEvent` after every XP grant. If an achievement doesn't have `check_key` + `check_threshold` set in the DB, it won't auto-trigger.
+`check_key` maps to player counters (`total_workouts`, `total_prs`, `total_quests`, `streak_days`, `gold`, `level`, `skills_unlocked`). The progression engine checks these automatically inside `applyXpEvent` after every XP grant.
 
 ## achievements table
 
-No unique constraint on `name` column — cannot use `ON CONFLICT (name) DO NOTHING`. Use `WHERE NOT EXISTS (SELECT 1 FROM achievements a WHERE a.name = v.name)` pattern instead.
+No unique constraint on `name` column — cannot use `ON CONFLICT (name) DO NOTHING`. Use `WHERE NOT EXISTS` pattern instead.
 
 ## Boss raids trigger conditions
 
-Raids unlock based on `triggerCondition` field: `streak_7`, `streak_30`, `rank_D`, `rank_C`, `rank_B`, `rank_S`. The available-raids endpoint checks against `player.streakDays` and `player.rank`. New players (Rank E, no streak) won't see any raids.
+Raids unlock based on `triggerCondition` field: `streak_7`, `streak_30`, `rank_D`, `rank_C`, `rank_B`, `rank_S`.
 
 ## Frontend routing
 
-8-item bottom nav: Status, Nutrition, Training, Quests, Raids, World, Records, Profile. Planner and Program are sub-routes of Training. World page is the Isekai story/map at `/world`.
+8-item bottom nav: Status, Nutrition, Training, Quests, Raids, World, Records, Profile. Planner and Program are sub-routes of Training.
 
 ## Isekai story system
 
-Story state lives entirely in `src/hooks/use-story.ts` (client-side, no backend). localStorage keys:
+Story state in `src/hooks/use-story.ts` (client-side). localStorage keys:
 - `rpg_onboarding_v2` — cinematic intro seen
 - `rpg_setup_v1` — character questionnaire completed
-- `rpg_class_base_v1` — assigned base class id (e.g. "warrior")
-- Onboarding guard in `AppRoutes`: no onboarding key → /onboarding; no setup key → /setup; else main app
+- `rpg_class_base_v1` — assigned base class id
 
 ## Onboarding trigger fix (server-authoritative)
 
-`player.setupCompleted` (boolean, DB column) is set to `true` by `POST /api/player/setup`. `PlayerSetupSync` component (in `App.tsx`, inside `ProtectedShell`) fetches player data on sign-in; if `setupCompleted` is false, clears localStorage onboarding keys and redirects to `/onboarding`. Runs once per `player.id` per session using a ref guard.
+`player.setupCompleted` (boolean, DB column) set by `POST /api/player/setup`. `PlayerSetupSync` in `App.tsx` redirects to `/onboarding` if false. Runs once per `player.id` using a ref guard.
 
-**Why:** localStorage-only check broke for new devices/browsers. Server flag is the authority; localStorage is just a UI optimization.
+## Class system (server-side)
 
-## Class system (now server-side)
-
-`baseClass` text column on `playerTable` stores the active class ID. Set by `POST /api/player/setup` (initial) and `POST /api/player/change-class` (reclass, costs 5000 gold). Class data/evolutions still live in `src/hooks/use-class.ts` (client-only, deterministic). Dashboard and class page prefer `player.baseClass` from API, fall back to localStorage.
-
-**Why:** localStorage-only class was invisible to the server, so XP multipliers couldn't be applied correctly.
+`baseClass` column on `playerTable`. Set by setup + change-class routes. Dashboard/class page prefer `player.baseClass`, fall back to localStorage.
 
 ## Level-up detection
 
-`useLevelUpDetector` hook in `src/hooks/use-level-up.ts` compares `player.level` previous vs current using a ref. Fires `LevelUpOverlay` when level increases. Wired into `MainLayout` via `LevelUpWatcher` component so it fires from any page after any mutation that grants XP. The overlay renders as a `z-[200]` fixed overlay.
+`useLevelUpDetector` hook compares `player.level` prev vs current via ref. Wired in `MainLayout` via `LevelUpWatcher`. Overlay renders at `z-[200]`.
+
+## Class Awakening Overlay
+
+`useAwakeningDetector` hook detects when player.level crosses evolution thresholds (15, 30, 50, 70, 90). Fires `AwakeningOverlay` at `z-[300]` — more dramatic than level-up (class-colored radial glow, cinematic phases: flash→reveal→abilities→done). Wired via `AwakeningWatcher` in `MainLayout`.
+
+**Why:** Must use the same prev-ref pattern as level-up detector so it only fires on transitions, not on initial page load.
+
+## Visual Skill Tree (Tier 2)
+
+`skills.tsx` uses `useLayoutEffect` + `ResizeObserver` + a `Map<nodeId, HTMLDivElement>` of refs to calculate SVG connector line coordinates dynamically. Tree tabs use `CATEGORY_META` for per-discipline icons/colors/glows. Selecting a node opens an inline detail panel with unlock button.
+
+**Why:** Calculating SVG line positions requires DOM layout info — must use `useLayoutEffect` after mount, not `useMemo` during render.
+
+## Raid Task Auto-Tracking (Tier 2)
+
+Each task in `RAID_TEMPLATES` now has a `taskType` field:
+- `"workout_sessions"`, `"prs"` — auto-incremented from `POST /training/sessions/:id` (PATCH with status=completed)
+- `"nutrition_days"` — auto-incremented when nutrition target met
+- `"streak_days"`, `"skill_unlocks"` — currently manual, reserved for future hooks
+- `"manual"` — only tappable in the UI
+
+`progressRaidTasks(playerId, taskType, amount)` exported from `boss-raids.ts`, called from `training.ts` after session completion. The task update endpoint now silently ignores updates to non-manual tasks.
+
+## RPG Armory (Tier 2)
+
+`rpg_gear` table (DB: `gear_slot` enum + rarity text + stat_bonuses JSONB). Gear drops on raid claim from `generateGearDrop(difficulty, source)`. Difficulty maps to rarity: E→common, D→uncommon, C→rare, B→epic, A→epic, S→legendary. Stat bonuses scale by rarity (1 pt common → 10 pts legendary). Armory tab added to inventory.tsx (tab order: Armory, Items, Store). Equip toggles per slot — equipping a new item automatically unequips the previous item in that slot.
 
 ## Active session page
 
-Rebuilt from 182-line stub to a full set-by-set tracker:
-- Exercises come from `session.templateExercises` (added to GET `/training/sessions/:id` response by joining template)
-- Per-exercise expandable cards with planned sets, logged sets list, inline form
-- Form pre-fills from last logged set for that exercise
-- PR badge fires when `set.isPr` is true
-- Rest timer (90s) auto-starts after each logged set
-- Session elapsed timer counts up from `session.startedAt`
-- End-of-session `SessionSummary` full-screen overlay shows XP, gold, duration, PRs
+Rebuilt to full set-by-set tracker: template exercises from `session.templateExercises`, per-set PR badge, 90s rest timer, elapsed timer, end-of-session `SessionSummary` overlay.
 
 ## Player initial state
 
-New players start with: level 1, all stats at 1, freeStatPoints 0, gold 500. The `freeStatPoints: 10` in player routes is intentional — it only applies on prestige (resets to lv1 with a bonus).
-
-## Arc and boss progression
-
-Computed from player level (from the existing API). No extra DB columns needed — level is the proxy for world progress. World danger = `getWorldDanger(level)`.
+New players: level 1, all stats at 1, freeStatPoints 0, gold 500.

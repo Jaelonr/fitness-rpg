@@ -14,6 +14,7 @@ import plannerRouter from "./planner";
 import bossRaidsRouter from "./boss-raids";
 import profileRouter from "./profile";
 import exercisesRouter from "./exercises";
+import armoryRouter from "./armory";
 
 const router: IRouter = Router();
 
@@ -43,5 +44,6 @@ router.use(plannerRouter);
 router.use(bossRaidsRouter);
 router.use(profileRouter);
 router.use(exercisesRouter);
+router.use(armoryRouter);
 
 export default router;

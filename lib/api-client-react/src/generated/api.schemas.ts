@@ -1022,6 +1022,18 @@ export interface SavePlanRequest {
   xpPreview?: number;
 }
 
+export type RaidTaskTaskType = typeof RaidTaskTaskType[keyof typeof RaidTaskTaskType];
+
+
+export const RaidTaskTaskType = {
+  workout_sessions: 'workout_sessions',
+  prs: 'prs',
+  streak_days: 'streak_days',
+  nutrition_days: 'nutrition_days',
+  skill_unlocks: 'skill_unlocks',
+  manual: 'manual',
+} as const;
+
 export interface RaidTask {
   id: string;
   description: string;
@@ -1032,6 +1044,7 @@ export interface RaidTask {
   targetValue?: number | null;
   /** @nullable */
   unit?: string | null;
+  taskType?: RaidTaskTaskType;
 }
 
 export type BossRaidDifficulty = typeof BossRaidDifficulty[keyof typeof BossRaidDifficulty];
@@ -1164,6 +1177,55 @@ export type RaidClaimResultNewAchievementsItem = { [key: string]: unknown };
 
 export type RaidClaimResultTitleGranted = { [key: string]: unknown } | null;
 
+export type RpgGearSlot = typeof RpgGearSlot[keyof typeof RpgGearSlot];
+
+
+export const RpgGearSlot = {
+  weapon: 'weapon',
+  offhand: 'offhand',
+  helmet: 'helmet',
+  chest: 'chest',
+  gloves: 'gloves',
+  boots: 'boots',
+  ring: 'ring',
+  necklace: 'necklace',
+} as const;
+
+export type RpgGearRarity = typeof RpgGearRarity[keyof typeof RpgGearRarity];
+
+
+export const RpgGearRarity = {
+  common: 'common',
+  uncommon: 'uncommon',
+  rare: 'rare',
+  epic: 'epic',
+  legendary: 'legendary',
+} as const;
+
+export type RpgGearStatBonuses = {
+  strength?: number;
+  agility?: number;
+  stamina?: number;
+  vitality?: number;
+  discipline?: number;
+  sense?: number;
+};
+
+export interface RpgGear {
+  id: number;
+  playerId: number;
+  name: string;
+  slot: RpgGearSlot;
+  rarity: RpgGearRarity;
+  statBonuses: RpgGearStatBonuses;
+  /** @nullable */
+  flavorText?: string | null;
+  /** @nullable */
+  source?: string | null;
+  equipped: boolean;
+  acquiredAt: string;
+}
+
 export interface RaidClaimResult {
   xpEarned: number;
   goldEarned: number;
@@ -1175,6 +1237,7 @@ export interface RaidClaimResult {
   newRank?: string | null;
   newAchievements?: RaidClaimResultNewAchievementsItem[];
   titleGranted?: RaidClaimResultTitleGranted;
+  gearDrop?: RpgGear | null;
   player: Player;
 }
 
@@ -1264,5 +1327,11 @@ export type UpdateBossRaidTaskBody = {
   currentValue?: number | null;
   /** @nullable */
   completed?: boolean | null;
+};
+
+export type EquipGear200 = {
+  id: number;
+  equipped: boolean;
+  slot: string;
 };
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bossRaidsTable, playerTable, titlesTable, playerTitlesTable } from "@workspace/db";
+import { bossRaidsTable, playerTable, titlesTable, playerTitlesTable, rpgGearTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getOrCreatePlayer, buildPlayerResponse, applyXpEvent } from "../progression";
 
@@ -8,6 +8,154 @@ const router = Router();
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
+}
+
+// ── Gear Catalog ──────────────────────────────────────────────────────────────
+
+const GEAR_CATALOG: Record<string, Record<string, string[]>> = {
+  weapon: {
+    common: ["Crude Iron Blade", "Worn Training Shortsword", "Dull Bronze Knife"],
+    uncommon: ["Hunter's Curved Blade", "Reinforced War Pick", "Iron Hunting Spear"],
+    rare: ["Dungeon-Forged Longsword", "Shadow-Etched Curved Blade", "Gate-Touched Greatsword"],
+    epic: ["Crimson Gate Saber", "Rift-Scarred Cleaver", "Dungeon Sovereign's Edge"],
+    legendary: ["Monarch's Rift Blade", "Aether-Born Greatsword", "Edge of the Sovereign"],
+  },
+  offhand: {
+    common: ["Cracked Wooden Buckler", "Worn Iron Parrying Dagger"],
+    uncommon: ["Hunter's Reinforced Shield", "Carved Bone Ward"],
+    rare: ["Dungeon Warden's Shield", "Shadow-Forged Aegis"],
+    epic: ["Crimson Gate Bulwark", "Rift-Tempered War Shield"],
+    legendary: ["Sovereign's Unbreakable Aegis", "Aether-Bound Protector"],
+  },
+  helmet: {
+    common: ["Leather Cap", "Bronze Skullcap"],
+    uncommon: ["Hunter's Reinforced Helm", "Carved Bone Circlet"],
+    rare: ["Dungeon Guardian's Helm", "Shadow-Forged Crown"],
+    epic: ["Crimson Warlord's Visor", "Rift-Blessed War Helm"],
+    legendary: ["Sovereign's Iron Crown", "Aether-Wreathed Battle Helm"],
+  },
+  chest: {
+    common: ["Tattered Leather Vest", "Basic Iron Chainmail"],
+    uncommon: ["Hunter's Reinforced Leathers", "Iron Scale Hauberk"],
+    rare: ["Dungeon Warden's Breastplate", "Shadow-Woven Chain Coat"],
+    epic: ["Crimson Gate Cuirass", "Rift-Tempered Battle Armor"],
+    legendary: ["Sovereign's Ironclad Plate", "Aether-Forged Exosuit"],
+  },
+  gloves: {
+    common: ["Rough Leather Wraps", "Basic Iron Gauntlets"],
+    uncommon: ["Hunter's Grip Bracers", "Reinforced Combat Gloves"],
+    rare: ["Dungeon Forged Gauntlets", "Shadow-Threaded Iron Gloves"],
+    epic: ["Crimson Gate Crushers", "Rift-Scarred Battle Fists"],
+    legendary: ["Sovereign's Iron Grasp", "Aether-Wreathed War Gauntlets"],
+  },
+  boots: {
+    common: ["Worn Traveler's Boots", "Basic Iron Greaves"],
+    uncommon: ["Hunter's Swift Boots", "Reinforced Leather Greaves"],
+    rare: ["Dungeon Walker's Greaves", "Shadow-Forged Pursuit Boots"],
+    epic: ["Crimson Gate Striders", "Rift-Tempered Warboots"],
+    legendary: ["Sovereign's Unstoppable Treads", "Aether-Blessed Swift Greaves"],
+  },
+  ring: {
+    common: ["Copper Band", "Rough Stone Ring"],
+    uncommon: ["Hunter's Lucky Ring", "Carved Bone Ring"],
+    rare: ["Dungeon-Forged Iron Ring", "Shadow-Etched Signet"],
+    epic: ["Crimson Gate Ring of Power", "Rift-Touched Battle Signet"],
+    legendary: ["Sovereign's Ring of Dominion", "Aether-Bound Eternal Ring"],
+  },
+  necklace: {
+    common: ["Hemp Cord Pendant", "Dull Stone Charm"],
+    uncommon: ["Hunter's Lucky Charm", "Carved Bone Pendant"],
+    rare: ["Dungeon Crystal Necklace", "Shadow-Infused Amulet"],
+    epic: ["Crimson Gate Medallion", "Rift-Blessed Power Amulet"],
+    legendary: ["Sovereign's Amulet of Command", "Aether-Core Eternal Pendant"],
+  },
+};
+
+const FLAVOR_TEXTS: Record<string, string> = {
+  common: "A basic piece of equipment salvaged from the outer training zones.",
+  uncommon: "Crafted by a skilled artisan of Aethoria, bearing subtle enchantments.",
+  rare: "Forged deep within a dungeon, imbued with residual mana crystals.",
+  epic: "An artifact of legend, feared and revered across the known zones.",
+  legendary: "An ancient relic. Its power transcends mortal understanding.",
+};
+
+const GEAR_SLOTS = ["weapon", "offhand", "helmet", "chest", "gloves", "boots", "ring", "necklace"] as const;
+const STAT_KEYS = ["strength", "agility", "stamina", "vitality", "discipline", "sense"] as const;
+
+function difficultyToRarity(difficulty: string): string {
+  const map: Record<string, string> = { E: "common", D: "uncommon", C: "rare", B: "epic", A: "epic", S: "legendary" };
+  return map[difficulty] ?? "common";
+}
+
+function generateStatBonuses(rarity: string): Record<string, number> {
+  const configs: Record<string, { total: number; count: number }> = {
+    common: { total: 1, count: 1 },
+    uncommon: { total: 2, count: 2 },
+    rare: { total: 4, count: 3 },
+    epic: { total: 6, count: 4 },
+    legendary: { total: 10, count: 6 },
+  };
+  const cfg = configs[rarity] ?? configs.common;
+  const chosen = [...STAT_KEYS].sort(() => Math.random() - 0.5).slice(0, cfg.count);
+  const result: Record<string, number> = {};
+  let remaining = cfg.total;
+  for (let i = 0; i < chosen.length; i++) {
+    if (i === chosen.length - 1) {
+      result[chosen[i]] = Math.max(1, remaining);
+    } else {
+      const pts = Math.max(1, Math.round(remaining / (chosen.length - i)));
+      result[chosen[i]] = pts;
+      remaining -= pts;
+    }
+  }
+  return result;
+}
+
+function generateGearDrop(difficulty: string, source: string) {
+  const rarity = difficultyToRarity(difficulty);
+  const slot = GEAR_SLOTS[Math.floor(Math.random() * GEAR_SLOTS.length)];
+  const names = GEAR_CATALOG[slot]?.[rarity] ?? GEAR_CATALOG[slot]?.common ?? ["Unknown Artifact"];
+  const name = names[Math.floor(Math.random() * names.length)];
+  return { name, slot, rarity, statBonuses: generateStatBonuses(rarity), flavorText: FLAVOR_TEXTS[rarity], source };
+}
+
+// ── Raid Task Auto-Progression ────────────────────────────────────────────────
+
+export async function progressRaidTasks(playerId: number, taskType: string, amount: number): Promise<void> {
+  const raids = await db.select().from(bossRaidsTable)
+    .where(and(eq(bossRaidsTable.playerId, playerId), eq(bossRaidsTable.status, "active")));
+
+  for (const raid of raids) {
+    const tasks = (raid.tasks as any[]);
+    let changed = false;
+
+    const updatedTasks = tasks.map((t: any) => {
+      if (t.taskType !== taskType || t.completed) return t;
+      const newValue = (t.currentValue ?? 0) + amount;
+      const isCompleted = t.targetValue ? newValue >= t.targetValue : false;
+      if (newValue !== t.currentValue || isCompleted !== t.completed) changed = true;
+      return { ...t, currentValue: newValue, completed: isCompleted };
+    });
+
+    if (changed) {
+      const allDone = updatedTasks.every((t: any) => t.completed);
+      await db.update(bossRaidsTable).set({
+        tasks: updatedTasks,
+        status: allDone ? "completed" : "active",
+        completedAt: allDone ? new Date() : undefined,
+      }).where(eq(bossRaidsTable.id, raid.id));
+    }
+  }
+}
+
+// ── Raid Templates ────────────────────────────────────────────────────────────
+
+interface RaidTask {
+  id: string;
+  description: string;
+  targetValue?: number;
+  unit?: string;
+  taskType: "workout_sessions" | "prs" | "streak_days" | "nutrition_days" | "skill_unlocks" | "manual";
 }
 
 interface RaidTemplate {
@@ -22,7 +170,7 @@ interface RaidTemplate {
   titleReward?: string;
   triggerCondition: string;
   isRepeatable: boolean;
-  tasks: Array<{ id: string; description: string; targetValue?: number; unit?: string }>;
+  tasks: RaidTask[];
 }
 
 const RAID_TEMPLATES: RaidTemplate[] = [
@@ -39,9 +187,9 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "streak_7",
     isRepeatable: false,
     tasks: [
-      { id: "t1", description: "Complete 3 workout sessions", targetValue: 3, unit: "sessions" },
-      { id: "t2", description: "Hit calorie targets 3 days in a row", targetValue: 3, unit: "days" },
-      { id: "t3", description: "Log a personal record on any lift", targetValue: 1, unit: "PRs" },
+      { id: "t1", description: "Complete 3 workout sessions", targetValue: 3, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t2", description: "Hit calorie targets 3 days in a row", targetValue: 3, unit: "days", taskType: "nutrition_days" },
+      { id: "t3", description: "Log a personal record on any lift", targetValue: 1, unit: "PRs", taskType: "prs" },
     ],
   },
   {
@@ -57,9 +205,9 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "rank_D",
     isRepeatable: false,
     tasks: [
-      { id: "t1", description: "Complete 10 heavy bag rounds (3 min each)", targetValue: 10, unit: "rounds" },
-      { id: "t2", description: "Complete 3 striking sessions in 48 hours", targetValue: 3, unit: "sessions" },
-      { id: "t3", description: "Maintain a 2-day streak during the raid", targetValue: 2, unit: "days" },
+      { id: "t1", description: "Complete 10 heavy bag rounds (3 min each)", targetValue: 10, unit: "rounds", taskType: "manual" },
+      { id: "t2", description: "Complete 3 striking sessions in 48 hours", targetValue: 3, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t3", description: "Maintain a 2-day streak during the raid", targetValue: 2, unit: "days", taskType: "streak_days" },
     ],
   },
   {
@@ -75,10 +223,10 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "rank_C",
     isRepeatable: false,
     tasks: [
-      { id: "t1", description: "Complete 5 strength training sessions", targetValue: 5, unit: "sessions" },
-      { id: "t2", description: "Set 3 new personal records", targetValue: 3, unit: "PRs" },
-      { id: "t3", description: "Hit all macro targets for 5 days", targetValue: 5, unit: "days" },
-      { id: "t4", description: "Maintain streak throughout the dungeon", targetValue: 4, unit: "days" },
+      { id: "t1", description: "Complete 5 strength training sessions", targetValue: 5, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t2", description: "Set 3 new personal records", targetValue: 3, unit: "PRs", taskType: "prs" },
+      { id: "t3", description: "Hit all macro targets for 5 days", targetValue: 5, unit: "days", taskType: "nutrition_days" },
+      { id: "t4", description: "Maintain streak throughout the dungeon", targetValue: 4, unit: "days", taskType: "streak_days" },
     ],
   },
   {
@@ -94,11 +242,11 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "rank_B",
     isRepeatable: false,
     tasks: [
-      { id: "t1", description: "Complete an upper body strength session", targetValue: 1, unit: "sessions" },
-      { id: "t2", description: "Complete a striking session", targetValue: 1, unit: "sessions" },
-      { id: "t3", description: "Complete a grappling session", targetValue: 1, unit: "sessions" },
-      { id: "t4", description: "Complete a conditioning session", targetValue: 1, unit: "sessions" },
-      { id: "t5", description: "Hit all nutrition targets throughout the gauntlet", targetValue: 4, unit: "days" },
+      { id: "t1", description: "Complete an upper body strength session", targetValue: 1, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t2", description: "Complete a striking session", targetValue: 1, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t3", description: "Complete a grappling session", targetValue: 1, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t4", description: "Complete a conditioning session", targetValue: 1, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t5", description: "Hit all nutrition targets throughout the gauntlet", targetValue: 4, unit: "days", taskType: "nutrition_days" },
     ],
   },
   {
@@ -114,11 +262,11 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "streak_30",
     isRepeatable: true,
     tasks: [
-      { id: "t1", description: "Complete 12 workout sessions in 7 days", targetValue: 12, unit: "sessions" },
-      { id: "t2", description: "Set 5 new personal records", targetValue: 5, unit: "PRs" },
-      { id: "t3", description: "Hit all macro targets every day for 7 days", targetValue: 7, unit: "days" },
-      { id: "t4", description: "Complete all 7 daily quests", targetValue: 7, unit: "quests" },
-      { id: "t5", description: "Unlock 2 new skill tree nodes", targetValue: 2, unit: "nodes" },
+      { id: "t1", description: "Complete 12 workout sessions in 7 days", targetValue: 12, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t2", description: "Set 5 new personal records", targetValue: 5, unit: "PRs", taskType: "prs" },
+      { id: "t3", description: "Hit all macro targets every day for 7 days", targetValue: 7, unit: "days", taskType: "nutrition_days" },
+      { id: "t4", description: "Complete all 7 daily quests", targetValue: 7, unit: "quests", taskType: "manual" },
+      { id: "t5", description: "Unlock 2 new skill tree nodes", targetValue: 2, unit: "nodes", taskType: "skill_unlocks" },
     ],
   },
   {
@@ -134,16 +282,18 @@ const RAID_TEMPLATES: RaidTemplate[] = [
     triggerCondition: "rank_S",
     isRepeatable: false,
     tasks: [
-      { id: "t1", description: "Complete 20 total sets of compound lifts (squat/bench/deadlift/press)", targetValue: 20, unit: "sets" },
-      { id: "t2", description: "Complete 10 striking rounds", targetValue: 10, unit: "rounds" },
-      { id: "t3", description: "Complete 3 grappling sessions", targetValue: 3, unit: "sessions" },
-      { id: "t4", description: "Set 10 new personal records", targetValue: 10, unit: "PRs" },
-      { id: "t5", description: "Hit all nutrition targets all 7 days", targetValue: 7, unit: "days" },
-      { id: "t6", description: "Maintain a 7-day streak", targetValue: 7, unit: "days" },
-      { id: "t7", description: "Unlock the final tier of any skill tree", targetValue: 1, unit: "node" },
+      { id: "t1", description: "Complete 20 total sets of compound lifts (squat/bench/deadlift/press)", targetValue: 20, unit: "sets", taskType: "manual" },
+      { id: "t2", description: "Complete 10 striking rounds", targetValue: 10, unit: "rounds", taskType: "manual" },
+      { id: "t3", description: "Complete 3 grappling sessions", targetValue: 3, unit: "sessions", taskType: "workout_sessions" },
+      { id: "t4", description: "Set 10 new personal records", targetValue: 10, unit: "PRs", taskType: "prs" },
+      { id: "t5", description: "Hit all nutrition targets all 7 days", targetValue: 7, unit: "days", taskType: "nutrition_days" },
+      { id: "t6", description: "Maintain a 7-day streak", targetValue: 7, unit: "days", taskType: "streak_days" },
+      { id: "t7", description: "Unlock the final tier of any skill tree", targetValue: 1, unit: "node", taskType: "skill_unlocks" },
     ],
   },
 ];
+
+// ── Serializer ────────────────────────────────────────────────────────────────
 
 function serializeRaid(raid: any) {
   return {
@@ -160,13 +310,14 @@ function serializeRaid(raid: any) {
   };
 }
 
+// ── Routes ────────────────────────────────────────────────────────────────────
+
 router.get("/boss-raids", async (req, res) => {
   try {
     const { player } = await getOrCreatePlayer(req.userId);
     const raids = await db.select().from(bossRaidsTable)
       .where(eq(bossRaidsTable.playerId, player.id));
 
-    // Check for expired raids
     const now = new Date();
     for (const raid of raids) {
       if (raid.status === "active" && raid.expiresAt && raid.expiresAt < now) {
@@ -190,13 +341,11 @@ router.get("/boss-raids/available", async (req, res) => {
 
     const completedTitles = new Set(existingRaids.filter(r => r.status !== "failed").map(r => r.title));
 
-    // Filter templates player hasn't completed (or repeatable ones)
     const available = RAID_TEMPLATES.filter(t => {
       if (t.isRepeatable) return true;
       return !completedTitles.has(t.title);
     });
 
-    // Check trigger conditions
     const triggered = available.filter(t => {
       const cond = t.triggerCondition;
       if (cond === "streak_7") return player.streakDays >= 7 || player.longestStreak >= 7;
@@ -226,7 +375,6 @@ router.post("/boss-raids/start", async (req, res) => {
     const template = RAID_TEMPLATES.find(t => t.title === templateTitle);
     if (!template) return res.status(404).json({ error: "Raid template not found" });
 
-    // Check if already active
     const existing = await db.select().from(bossRaidsTable)
       .where(and(eq(bossRaidsTable.playerId, player.id)));
     const activeRaid = existing.find(r => r.title === template.title && (r.status === "active" || r.status === "completed"));
@@ -283,8 +431,9 @@ router.patch("/boss-raids/:id/task", async (req, res) => {
     if (!raid) return res.status(404).json({ error: "Raid not found" });
     if (raid.status !== "active") return res.status(400).json({ error: "Raid is not active" });
 
-    const tasks = (raid.tasks as any[]).map(t => {
+    const tasks = (raid.tasks as any[]).map((t: any) => {
       if (t.id === taskId) {
+        if (t.taskType !== "manual") return t;
         const newValue = currentValue ?? t.currentValue;
         const isCompleted = completed ?? (t.targetValue ? newValue >= t.targetValue : completed);
         return { ...t, currentValue: newValue, completed: isCompleted };
@@ -292,7 +441,7 @@ router.patch("/boss-raids/:id/task", async (req, res) => {
       return t;
     });
 
-    const allDone = tasks.every(t => t.completed);
+    const allDone = tasks.every((t: any) => t.completed);
     const newStatus = allDone ? "completed" : "active";
 
     const [updated] = await db.update(bossRaidsTable).set({
@@ -321,21 +470,18 @@ router.post("/boss-raids/:id/claim", async (req, res) => {
     await db.update(bossRaidsTable).set({ status: "claimed", claimedAt: new Date() })
       .where(eq(bossRaidsTable.id, raidId));
 
-    // Grant gold + stat points
     await db.update(playerTable).set({
       gold: player.gold + raid.goldReward,
       freeStatPoints: player.freeStatPoints + (raid.bonusStatPoints || 0),
       updatedAt: new Date(),
     }).where(eq(playerTable.id, player.id));
 
-    // Apply XP
     const xpResult = await applyXpEvent(
       player.id, raid.xpReward,
       `Boss Raid: ${raid.title}`, "boss_raid",
       getTodayStr()
     );
 
-    // Grant title reward if specified
     let titleGranted = null;
     if (raid.titleReward) {
       const [title] = await db.select().from(titlesTable)
@@ -344,13 +490,17 @@ router.post("/boss-raids/:id/claim", async (req, res) => {
         const existing = await db.select().from(playerTitlesTable)
           .where(and(eq(playerTitlesTable.playerId, player.id), eq(playerTitlesTable.titleId, title.id)));
         if (existing.length === 0) {
-          await db.insert(playerTitlesTable).values({
-            playerId: player.id, titleId: title.id, equipped: false,
-          });
+          await db.insert(playerTitlesTable).values({ playerId: player.id, titleId: title.id, equipped: false });
           titleGranted = title;
         }
       }
     }
+
+    const drop = generateGearDrop(raid.difficulty, `Raid: ${raid.title}`);
+    const [gearDrop] = await db.insert(rpgGearTable).values({
+      playerId: player.id,
+      ...drop,
+    }).returning();
 
     const { player: freshPlayer, stats: freshStats } = await getOrCreatePlayer(req.userId);
 
@@ -364,6 +514,7 @@ router.post("/boss-raids/:id/claim", async (req, res) => {
       newRank: xpResult.newRank,
       newAchievements: xpResult.newAchievements,
       titleGranted,
+      gearDrop: { ...gearDrop, acquiredAt: gearDrop.acquiredAt.toISOString() },
       player: buildPlayerResponse(freshPlayer, freshStats),
     });
   } catch (err) {

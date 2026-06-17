@@ -8,6 +8,7 @@ import {
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { getOrCreatePlayer, buildPlayerResponse } from "../progression";
 import { applyXpEvent, updateStreak } from "../progression";
+import { progressRaidTasks } from "./boss-raids";
 
 const router = Router();
 
@@ -258,6 +259,9 @@ router.patch("/training/sessions/:id", async (req, res) => {
 
         // Apply XP through progression engine (handles level ups + achievements)
         xpResult = await applyXpEvent(player.id, totalXp, "Workout Completed", "training", today);
+
+        await progressRaidTasks(player.id, "workout_sessions", 1);
+        if (prCount > 0) await progressRaidTasks(player.id, "prs", prCount);
 
         // Check nutrition bonus — if today's calories are within 200 of target, grant bonus XP
         const nutritionLogs = await db.select().from(nutritionLogsTable)

@@ -27,6 +27,7 @@ import type {
   CopyMealsResult,
   DailyNutritionSummary,
   DashboardSummary,
+  EquipGear200,
   Equipment,
   EquipmentInput,
   EquipmentUpdate,
@@ -64,6 +65,7 @@ import type {
   ResetPlayer200,
   RespecPlayer200,
   RespecPlayerBody,
+  RpgGear,
   SavePlanRequest,
   SavedMeal,
   SavedMealInput,
@@ -5381,5 +5383,152 @@ export const useClaimBossRaidReward = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getClaimBossRaidRewardMutationOptions(options));
+    }
+
+export const getGetArmoryUrl = () => {
+
+
+
+
+  return `/api/armory`
+}
+
+/**
+ * @summary Get player's RPG gear
+ */
+export const getArmory = async ( options?: RequestInit): Promise<RpgGear[]> => {
+
+  return customFetch<RpgGear[]>(getGetArmoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArmoryQueryKey = () => {
+    return [
+    `/api/armory`
+    ] as const;
+    }
+
+
+export const getGetArmoryQueryOptions = <TData = Awaited<ReturnType<typeof getArmory>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArmory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArmoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArmory>>> = ({ signal }) => getArmory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArmory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArmoryQueryResult = NonNullable<Awaited<ReturnType<typeof getArmory>>>
+export type GetArmoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get player's RPG gear
+ */
+
+export function useGetArmory<TData = Awaited<ReturnType<typeof getArmory>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArmory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArmoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getEquipGearUrl = (id: number,) => {
+
+
+
+
+  return `/api/armory/${id}/equip`
+}
+
+/**
+ * @summary Equip or unequip a gear item
+ */
+export const equipGear = async (id: number, options?: RequestInit): Promise<EquipGear200> => {
+
+  return customFetch<EquipGear200>(getEquipGearUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getEquipGearMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof equipGear>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof equipGear>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['equipGear'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof equipGear>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  equipGear(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EquipGearMutationResult = NonNullable<Awaited<ReturnType<typeof equipGear>>>
+
+    export type EquipGearMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Equip or unequip a gear item
+ */
+export const useEquipGear = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof equipGear>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof equipGear>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getEquipGearMutationOptions(options));
     }
 

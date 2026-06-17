@@ -1720,7 +1720,8 @@ export const GetBossRaidsResponseItem = zod.object({
   "completed": zod.boolean(),
   "currentValue": zod.number().nullish(),
   "targetValue": zod.number().nullish(),
-  "unit": zod.string().nullish()
+  "unit": zod.string().nullish(),
+  "taskType": zod.enum(['workout_sessions', 'prs', 'streak_days', 'nutrition_days', 'skill_unlocks', 'manual']).optional()
 })),
   "startedAt": zod.string().nullish(),
   "expiresAt": zod.string().nullish(),
@@ -1752,7 +1753,8 @@ export const GetAvailableBossRaidsResponseItem = zod.object({
   "completed": zod.boolean(),
   "currentValue": zod.number().nullish(),
   "targetValue": zod.number().nullish(),
-  "unit": zod.string().nullish()
+  "unit": zod.string().nullish(),
+  "taskType": zod.enum(['workout_sessions', 'prs', 'streak_days', 'nutrition_days', 'skill_unlocks', 'manual']).optional()
 }))
 })
 export const GetAvailableBossRaidsResponse = zod.array(GetAvailableBossRaidsResponseItem)
@@ -1794,7 +1796,8 @@ export const GetBossRaidResponse = zod.object({
   "completed": zod.boolean(),
   "currentValue": zod.number().nullish(),
   "targetValue": zod.number().nullish(),
-  "unit": zod.string().nullish()
+  "unit": zod.string().nullish(),
+  "taskType": zod.enum(['workout_sessions', 'prs', 'streak_days', 'nutrition_days', 'skill_unlocks', 'manual']).optional()
 })),
   "startedAt": zod.string().nullish(),
   "expiresAt": zod.string().nullish(),
@@ -1837,7 +1840,8 @@ export const UpdateBossRaidTaskResponse = zod.object({
   "completed": zod.boolean(),
   "currentValue": zod.number().nullish(),
   "targetValue": zod.number().nullish(),
-  "unit": zod.string().nullish()
+  "unit": zod.string().nullish(),
+  "taskType": zod.enum(['workout_sessions', 'prs', 'streak_days', 'nutrition_days', 'skill_unlocks', 'manual']).optional()
 })),
   "startedAt": zod.string().nullish(),
   "expiresAt": zod.string().nullish(),
@@ -1867,6 +1871,25 @@ export const ClaimBossRaidRewardResponse = zod.object({
   "titleGranted": zod.object({
 
 }).passthrough().nullish(),
+  "gearDrop": zod.object({
+  "id": zod.number(),
+  "playerId": zod.number(),
+  "name": zod.string(),
+  "slot": zod.enum(['weapon', 'offhand', 'helmet', 'chest', 'gloves', 'boots', 'ring', 'necklace']),
+  "rarity": zod.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']),
+  "statBonuses": zod.object({
+  "strength": zod.number().optional(),
+  "agility": zod.number().optional(),
+  "stamina": zod.number().optional(),
+  "vitality": zod.number().optional(),
+  "discipline": zod.number().optional(),
+  "sense": zod.number().optional()
+}),
+  "flavorText": zod.string().nullish(),
+  "source": zod.string().nullish(),
+  "equipped": zod.boolean(),
+  "acquiredAt": zod.string()
+}).nullish(),
   "player": zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -1895,6 +1918,45 @@ export const ClaimBossRaidRewardResponse = zod.object({
   "setupCompleted": zod.boolean().optional(),
   "createdAt": zod.string()
 })
+})
+
+
+/**
+ * @summary Get player's RPG gear
+ */
+export const GetArmoryResponseItem = zod.object({
+  "id": zod.number(),
+  "playerId": zod.number(),
+  "name": zod.string(),
+  "slot": zod.enum(['weapon', 'offhand', 'helmet', 'chest', 'gloves', 'boots', 'ring', 'necklace']),
+  "rarity": zod.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']),
+  "statBonuses": zod.object({
+  "strength": zod.number().optional(),
+  "agility": zod.number().optional(),
+  "stamina": zod.number().optional(),
+  "vitality": zod.number().optional(),
+  "discipline": zod.number().optional(),
+  "sense": zod.number().optional()
+}),
+  "flavorText": zod.string().nullish(),
+  "source": zod.string().nullish(),
+  "equipped": zod.boolean(),
+  "acquiredAt": zod.string()
+})
+export const GetArmoryResponse = zod.array(GetArmoryResponseItem)
+
+
+/**
+ * @summary Equip or unequip a gear item
+ */
+export const EquipGearParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const EquipGearResponse = zod.object({
+  "id": zod.number(),
+  "equipped": zod.boolean(),
+  "slot": zod.string()
 })
 
 
