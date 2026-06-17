@@ -17,6 +17,7 @@ import Analytics from "@/pages/analytics";
 import Planner from "@/pages/planner";
 import Raids from "@/pages/raids";
 import Profile from "@/pages/profile";
+import Settings from "@/pages/settings";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/inventory" component={Inventory} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/profile" component={Profile} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>

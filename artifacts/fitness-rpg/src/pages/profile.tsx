@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Dumbbell, Scale, Ruler, Activity, Save, ChevronRight, Info } from "lucide-react";
+import { Dumbbell, Scale, Ruler, Activity, Save, ChevronRight, Info, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 
 const EQUIPMENT_TYPES = [
   { id: "barbell", label: "Barbell" },
@@ -125,7 +126,17 @@ export default function Profile() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <PageHeader title="Hunter Profile" subtitle="Biometric data & equipment access" />
+      <PageHeader
+        title="Hunter Profile"
+        subtitle="Biometric data & equipment access"
+        action={
+          <Link href="/settings">
+            <button className="w-9 h-9 rounded-lg border border-border/50 bg-black/20 flex items-center justify-center hover:border-primary/50 hover:bg-primary/10 transition-all">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </Link>
+        }
+      />
 
       {/* Info Banner */}
       <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
