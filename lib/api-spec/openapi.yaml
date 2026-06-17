@@ -990,6 +990,37 @@ paths:
                 items:
                   $ref: "#/components/schemas/RankProgressEntry"
 
+  # ─── PROFILE / BIOMETRICS ───────────────────────────────────────────────────
+  /profile/biometrics:
+    get:
+      operationId: getBiometrics
+      tags: [player]
+      summary: Get player biometric profile
+      responses:
+        "200":
+          description: Player biometrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerBiometrics"
+    put:
+      operationId: updateBiometrics
+      tags: [player]
+      summary: Update player biometric profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerBiometricsUpdate"
+      responses:
+        "200":
+          description: Updated biometrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerBiometrics"
+
   # ─── PLANNER ────────────────────────────────────────────────────────────────
   /training/planner/generate:
     post:
@@ -2161,6 +2192,8 @@ components:
                 type: string
               reason:
                 type: string
+        recommendedWeightKg:
+          type: ["number", "null"]
 
     GeneratedPlan:
       type: object
@@ -2176,6 +2209,8 @@ components:
           type: integer
         totalSets:
           type: integer
+        hasBiometrics:
+          type: boolean
         exercises:
           type: array
           items:
@@ -2325,6 +2360,58 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RaidTask"
+
+    PlayerBiometrics:
+      type: object
+      properties:
+        heightCm:
+          type: ["number", "null"]
+        weightKg:
+          type: ["number", "null"]
+        bodyFatPct:
+          type: ["number", "null"]
+        squat1rm:
+          type: ["integer", "null"]
+        bench1rm:
+          type: ["integer", "null"]
+        deadlift1rm:
+          type: ["integer", "null"]
+        ohp1rm:
+          type: ["integer", "null"]
+        row1rm:
+          type: ["integer", "null"]
+        equipmentTypes:
+          type: array
+          items:
+            type: string
+        notes:
+          type: ["string", "null"]
+
+    PlayerBiometricsUpdate:
+      type: object
+      properties:
+        heightCm:
+          type: ["number", "null"]
+        weightKg:
+          type: ["number", "null"]
+        bodyFatPct:
+          type: ["number", "null"]
+        squat1rm:
+          type: ["integer", "null"]
+        bench1rm:
+          type: ["integer", "null"]
+        deadlift1rm:
+          type: ["integer", "null"]
+        ohp1rm:
+          type: ["integer", "null"]
+        row1rm:
+          type: ["integer", "null"]
+        equipmentTypes:
+          type: array
+          items:
+            type: string
+        notes:
+          type: ["string", "null"]
 
     RaidClaimResult:
       type: object

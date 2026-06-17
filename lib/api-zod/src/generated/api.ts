@@ -1337,6 +1337,53 @@ export const GetRankProgressResponse = zod.array(GetRankProgressResponseItem)
 
 
 /**
+ * @summary Get player biometric profile
+ */
+export const GetBiometricsResponse = zod.object({
+  "heightCm": zod.number().nullish(),
+  "weightKg": zod.number().nullish(),
+  "bodyFatPct": zod.number().nullish(),
+  "squat1rm": zod.number().nullish(),
+  "bench1rm": zod.number().nullish(),
+  "deadlift1rm": zod.number().nullish(),
+  "ohp1rm": zod.number().nullish(),
+  "row1rm": zod.number().nullish(),
+  "equipmentTypes": zod.array(zod.string()).optional(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update player biometric profile
+ */
+export const UpdateBiometricsBody = zod.object({
+  "heightCm": zod.number().nullish(),
+  "weightKg": zod.number().nullish(),
+  "bodyFatPct": zod.number().nullish(),
+  "squat1rm": zod.number().nullish(),
+  "bench1rm": zod.number().nullish(),
+  "deadlift1rm": zod.number().nullish(),
+  "ohp1rm": zod.number().nullish(),
+  "row1rm": zod.number().nullish(),
+  "equipmentTypes": zod.array(zod.string()).optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateBiometricsResponse = zod.object({
+  "heightCm": zod.number().nullish(),
+  "weightKg": zod.number().nullish(),
+  "bodyFatPct": zod.number().nullish(),
+  "squat1rm": zod.number().nullish(),
+  "bench1rm": zod.number().nullish(),
+  "deadlift1rm": zod.number().nullish(),
+  "ohp1rm": zod.number().nullish(),
+  "row1rm": zod.number().nullish(),
+  "equipmentTypes": zod.array(zod.string()).optional(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
  * @summary Generate an equipment-aware workout plan
  */
 export const GenerateWorkoutPlanBody = zod.object({
@@ -1353,6 +1400,7 @@ export const GenerateWorkoutPlanResponse = zod.object({
   "estimatedDuration": zod.number(),
   "xpPreview": zod.number(),
   "totalSets": zod.number(),
+  "hasBiometrics": zod.boolean().optional(),
   "exercises": zod.array(zod.object({
   "exerciseId": zod.number(),
   "exerciseName": zod.string(),
@@ -1368,7 +1416,8 @@ export const GenerateWorkoutPlanResponse = zod.object({
   "exerciseId": zod.number().optional(),
   "exerciseName": zod.string().optional(),
   "reason": zod.string().optional()
-})).optional()
+})).optional(),
+  "recommendedWeightKg": zod.number().nullish()
 })),
   "rpeGuide": zod.object({
   "target": zod.number().optional(),
@@ -1410,7 +1459,8 @@ export const SavePlanAsTemplateBody = zod.object({
   "exerciseId": zod.number().optional(),
   "exerciseName": zod.string().optional(),
   "reason": zod.string().optional()
-})).optional()
+})).optional(),
+  "recommendedWeightKg": zod.number().nullish()
 })),
   "estimatedDuration": zod.number().optional(),
   "xpPreview": zod.number().optional()

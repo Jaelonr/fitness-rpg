@@ -11,6 +11,7 @@ import analyticsRouter from "./analytics";
 import dashboardRouter from "./dashboard";
 import plannerRouter from "./planner";
 import bossRaidsRouter from "./boss-raids";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(analyticsRouter);
 router.use(dashboardRouter);
 router.use(plannerRouter);
 router.use(bossRaidsRouter);
+router.use(profileRouter);
 
 export default router;

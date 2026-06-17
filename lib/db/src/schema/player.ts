@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, pgEnum, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -86,6 +86,22 @@ export const xpHistoryTable = pgTable("xp_history", {
   category: text("category").notNull().default("general"),
   date: text("date").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const playerBiometricsTable = pgTable("player_biometrics", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id").notNull().references(() => playerTable.id),
+  heightCm: real("height_cm"),
+  weightKg: real("weight_kg"),
+  bodyFatPct: real("body_fat_pct"),
+  squat1rm: integer("squat_1rm"),
+  bench1rm: integer("bench_1rm"),
+  deadlift1rm: integer("deadlift_1rm"),
+  ohp1rm: integer("ohp_1rm"),
+  row1rm: integer("row_1rm"),
+  equipmentTypes: text("equipment_types").array(),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const insertPlayerSchema = createInsertSchema(playerTable).omit({ id: true, createdAt: true, updatedAt: true });

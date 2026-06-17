@@ -1,8 +1,30 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { exercisesTable, equipmentTable, workoutTemplatesTable } from "@workspace/db";
+import { exercisesTable, equipmentTable, workoutTemplatesTable, playerBiometricsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getOrCreatePlayer } from "../progression";
+
+// Calculate recommended working weight from 1RM and RPE
+function calcWeight(oneRepMax: number | null | undefined, rpe: number): number | null {
+  if (!oneRepMax) return null;
+  // RPE to % table (simplified)
+  const pct = Math.max(0.6, Math.min(1.0, 0.6 + (rpe - 5) * 0.08));
+  const kg = Math.round(oneRepMax * pct / 2.5) * 2.5;
+  return kg;
+}
+
+// Map exercise muscle group + category to a 1RM field
+function get1rm(muscleGroup: string, exerciseName: string, bio: Record<string, number | null>): number | null {
+  const mg = muscleGroup.toLowerCase();
+  const name = exerciseName.toLowerCase();
+  if (name.includes("deadlift")) return bio["deadlift1rm"] ?? null;
+  if (mg.includes("leg") || mg.includes("quad") || name.includes("squat")) return bio["squat1rm"] ?? null;
+  if (mg.includes("hamstring") || mg.includes("glute")) return bio["deadlift1rm"] ?? null;
+  if (mg.includes("chest") || name.includes("bench") || name.includes("press") && !name.includes("overhead") && !name.includes("ohp") && !name.includes("shoulder")) return bio["bench1rm"] ?? null;
+  if (mg.includes("shoulder") || name.includes("overhead") || name.includes("ohp") || name.includes(" press")) return bio["ohp1rm"] ?? null;
+  if (mg.includes("back") || mg.includes("lat") || name.includes("row")) return bio["row1rm"] ?? null;
+  return null;
+}
 
 const router = Router();
 
@@ -18,6 +40,7 @@ interface PlanExercise {
   notes?: string;
   phase: "warmup" | "main" | "accessory" | "finisher";
   substitutes?: Array<{ exerciseId: number; exerciseName: string; reason: string }>;
+  recommendedWeightKg?: number | null;
 }
 
 type WorkoutGoal = "strength" | "hypertrophy" | "conditioning" | "striking" | "recovery" | "back_friendly_lower";
@@ -167,7 +190,7 @@ function buildSubstitutes(exercise: any, all: any[], availableEquipmentIds: Set<
   }));
 }
 
-router.post("/training/planner", async (req, res) => {
+router.post("/training/planner/generate", async (req, res) => {
   try {
     const { player, stats } = await getOrCreatePlayer();
     const {
@@ -190,7 +213,18 @@ router.post("/training/planner", async (req, res) => {
 
     const config = GOAL_CONFIGS[goal];
 
-    // Get available equipment
+    // Load biometrics for weight recommendations
+    const [bioRow] = await db.select().from(playerBiometricsTable).where(eq(playerBiometricsTable.playerId, player.id));
+    const bio: Record<string, number | null> = {
+      squat1rm: bioRow?.squat1rm ?? null,
+      bench1rm: bioRow?.bench1rm ?? null,
+      deadlift1rm: bioRow?.deadlift1rm ?? null,
+      ohp1rm: bioRow?.ohp1rm ?? null,
+      row1rm: bioRow?.row1rm ?? null,
+    };
+    const hasBiometrics = Object.values(bio).some(v => v !== null);
+
+    // Get available equipment — use biometrics equipmentTypes to pre-filter if set
     const allEquipment = await db.select().from(equipmentTable);
     const availableIds = new Set(
       allEquipment
@@ -224,25 +258,30 @@ router.post("/training/planner", async (req, res) => {
         exerciseId: ex.id, exerciseName: ex.name, muscleGroup: ex.muscleGroup, category: ex.category,
         sets: 2, reps: "10-15", rpe: Math.min(5, rpeLimit || 5), restSeconds: 45, phase: "warmup",
         notes: "Light weight, focus on form and range of motion.",
+        recommendedWeightKg: null,
       });
     }
 
     for (const ex of mainExercises) {
       const rpe = rpeLimit ? Math.min(config.mainRpe, rpeLimit) : config.mainRpe;
+      const orm = get1rm(ex.muscleGroup, ex.name, bio);
       plan.push({
         exerciseId: ex.id, exerciseName: ex.name, muscleGroup: ex.muscleGroup, category: ex.category,
         sets: config.mainSets, reps: config.mainReps, rpe, restSeconds: config.rest, phase: "main",
         notes: `Working weight. ${config.warmupNotes}`,
         substitutes: buildSubstitutes(ex, allExercises, availableIds),
+        recommendedWeightKg: calcWeight(orm, rpe),
       });
     }
 
     for (const ex of accessoryExercises) {
       const rpe = rpeLimit ? Math.min(config.accessoryRpe, rpeLimit) : config.accessoryRpe;
+      const orm = get1rm(ex.muscleGroup, ex.name, bio);
       plan.push({
         exerciseId: ex.id, exerciseName: ex.name, muscleGroup: ex.muscleGroup, category: ex.category,
         sets: config.accessorySets, reps: config.accessoryReps, rpe, restSeconds: config.accessoryRest, phase: "accessory",
         substitutes: buildSubstitutes(ex, allExercises, availableIds),
+        recommendedWeightKg: calcWeight(orm, rpe),
       });
     }
 
@@ -280,6 +319,7 @@ router.post("/training/planner", async (req, res) => {
       estimatedDuration: config.estimatedMinutes,
       xpPreview,
       totalSets,
+      hasBiometrics,
       exercises: plan,
       rpeGuide: {
         target: config.mainRpe,

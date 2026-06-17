@@ -7,6 +7,7 @@ import {
   Backpack, 
   BarChart3,
   Swords,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/raids", icon: Swords, label: "Raids" },
   { href: "/inventory", icon: Backpack, label: "Store" },
   { href: "/analytics", icon: BarChart3, label: "Records" },
+  { href: "/profile", icon: User, label: "Profile" },
 ];
 
 export function BottomNav() {

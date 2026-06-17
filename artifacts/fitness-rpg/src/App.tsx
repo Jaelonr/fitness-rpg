@@ -16,6 +16,7 @@ import Inventory from "@/pages/inventory";
 import Analytics from "@/pages/analytics";
 import Planner from "@/pages/planner";
 import Raids from "@/pages/raids";
+import Profile from "@/pages/profile";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/raids" component={Raids} />
         <Route path="/inventory" component={Inventory} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/profile" component={Profile} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>

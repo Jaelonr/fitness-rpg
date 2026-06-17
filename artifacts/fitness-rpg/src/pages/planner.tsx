@@ -23,9 +23,12 @@ import {
   Swords,
   Target,
   Wind,
+  User,
+  Weight,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
 type Goal = "strength" | "hypertrophy" | "conditioning" | "striking" | "recovery" | "back_friendly_lower";
@@ -56,6 +59,7 @@ const PHASE_LABELS: Record<string, string> = {
 function ExerciseCard({ exercise }: { exercise: PlanExercise }) {
   const [expanded, setExpanded] = useState(false);
   const hasSubstitutes = exercise.substitutes && exercise.substitutes.length > 0;
+  const hasWeight = exercise.recommendedWeightKg != null && exercise.recommendedWeightKg > 0;
 
   return (
     <div className={cn("rounded-lg border p-3 transition-all", PHASE_COLORS[exercise.phase] || "border-border/50")}>
@@ -79,6 +83,13 @@ function ExerciseCard({ exercise }: { exercise: PlanExercise }) {
             <span>RPE {exercise.rpe}</span>
             <span>{exercise.restSeconds}s rest</span>
           </div>
+          {hasWeight && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Weight className="w-3 h-3 text-primary" />
+              <span className="text-xs font-mono font-bold text-primary">{exercise.recommendedWeightKg} kg</span>
+              <span className="text-[10px] text-muted-foreground">recommended</span>
+            </div>
+          )}
           {exercise.notes && (
             <p className="text-[11px] text-muted-foreground mt-1 italic">{exercise.notes}</p>
           )}
@@ -112,6 +123,7 @@ export default function Planner() {
   const { data: equipment } = useGetEquipment();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleGenerate = () => {
     generatePlan.mutate(
@@ -340,12 +352,40 @@ export default function Planner() {
         </div>
       )}
 
+      {/* No-biometrics nudge (shown after first plan if no data) */}
+      {plan && !generatePlan.isPending && !plan.hasBiometrics && (
+        <button
+          onClick={() => navigate("/profile")}
+          className="w-full flex items-center gap-3 p-3 rounded-xl border border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50 hover:bg-yellow-500/10 transition-all text-left"
+        >
+          <User className="w-5 h-5 text-yellow-400 shrink-0" />
+          <div className="flex-1">
+            <div className="text-xs font-bold text-yellow-300">Set up your Hunter Profile</div>
+            <div className="text-[10px] text-yellow-400/70">Add your strength maxes to get recommended working weights</div>
+          </div>
+          <span className="text-yellow-400 text-xs">→</span>
+        </button>
+      )}
+
       {/* Empty state */}
       {!plan && !generatePlan.isPending && (
-        <div className="text-center py-10 border border-dashed border-border/30 rounded-xl text-muted-foreground">
-          <Dumbbell className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Select a goal and generate your plan.</p>
-          <p className="text-xs mt-1 opacity-60">Uses your registered equipment automatically.</p>
+        <div className="space-y-3">
+          <div className="text-center py-10 border border-dashed border-border/30 rounded-xl text-muted-foreground">
+            <Dumbbell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Select a goal and generate your plan.</p>
+            <p className="text-xs mt-1 opacity-60">Uses your registered equipment automatically.</p>
+          </div>
+          <button
+            onClick={() => navigate("/profile")}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5 hover:border-primary/40 transition-all text-left"
+          >
+            <User className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="text-xs font-bold text-foreground">Set up Hunter Profile first</div>
+              <div className="text-[10px] text-muted-foreground">Add your 1RM maxes for weight recommendations</div>
+            </div>
+            <span className="text-primary text-xs">→</span>
+          </button>
         </div>
       )}
     </div>

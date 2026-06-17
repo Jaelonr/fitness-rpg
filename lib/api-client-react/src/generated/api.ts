@@ -46,6 +46,8 @@ import type {
   PersonalRecord,
   PlannerRequest,
   Player,
+  PlayerBiometrics,
+  PlayerBiometricsUpdate,
   PlayerUpdate,
   PurchaseInput,
   PurchaseResult,
@@ -4201,6 +4203,154 @@ export function useGetRankProgress<TData = Awaited<ReturnType<typeof getRankProg
 
 
 
+
+export const getGetBiometricsUrl = () => {
+
+
+
+
+  return `/api/profile/biometrics`
+}
+
+/**
+ * @summary Get player biometric profile
+ */
+export const getBiometrics = async ( options?: RequestInit): Promise<PlayerBiometrics> => {
+
+  return customFetch<PlayerBiometrics>(getGetBiometricsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBiometricsQueryKey = () => {
+    return [
+    `/api/profile/biometrics`
+    ] as const;
+    }
+
+
+export const getGetBiometricsQueryOptions = <TData = Awaited<ReturnType<typeof getBiometrics>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBiometrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBiometricsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBiometrics>>> = ({ signal }) => getBiometrics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBiometrics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBiometricsQueryResult = NonNullable<Awaited<ReturnType<typeof getBiometrics>>>
+export type GetBiometricsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get player biometric profile
+ */
+
+export function useGetBiometrics<TData = Awaited<ReturnType<typeof getBiometrics>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBiometrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBiometricsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateBiometricsUrl = () => {
+
+
+
+
+  return `/api/profile/biometrics`
+}
+
+/**
+ * @summary Update player biometric profile
+ */
+export const updateBiometrics = async (playerBiometricsUpdate: PlayerBiometricsUpdate, options?: RequestInit): Promise<PlayerBiometrics> => {
+
+  return customFetch<PlayerBiometrics>(getUpdateBiometricsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      playerBiometricsUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateBiometricsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBiometrics>>, TError,{data: BodyType<PlayerBiometricsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBiometrics>>, TError,{data: BodyType<PlayerBiometricsUpdate>}, TContext> => {
+
+const mutationKey = ['updateBiometrics'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBiometrics>>, {data: BodyType<PlayerBiometricsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBiometrics(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBiometricsMutationResult = NonNullable<Awaited<ReturnType<typeof updateBiometrics>>>
+    export type UpdateBiometricsMutationBody = BodyType<PlayerBiometricsUpdate>
+    export type UpdateBiometricsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update player biometric profile
+ */
+export const useUpdateBiometrics = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBiometrics>>, TError,{data: BodyType<PlayerBiometricsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBiometrics>>,
+        TError,
+        {data: BodyType<PlayerBiometricsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBiometricsMutationOptions(options));
+    }
 
 export const getGenerateWorkoutPlanUrl = () => {
 

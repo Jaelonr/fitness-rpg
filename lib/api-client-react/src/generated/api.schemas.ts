@@ -893,6 +893,8 @@ export interface PlanExercise {
   /** @nullable */
   notes?: string | null;
   substitutes?: PlanExerciseSubstitutesItem[];
+  /** @nullable */
+  recommendedWeightKg?: number | null;
 }
 
 export type GeneratedPlanRpeGuide = {
@@ -919,6 +921,7 @@ export interface GeneratedPlan {
   estimatedDuration: number;
   xpPreview: number;
   totalSets: number;
+  hasBiometrics?: boolean;
   exercises: PlanExercise[];
   rpeGuide?: GeneratedPlanRpeGuide;
   /** @nullable */
@@ -1029,6 +1032,50 @@ export interface RaidTemplate {
   isRepeatable: boolean;
   alreadyCompleted: boolean;
   tasks: RaidTask[];
+}
+
+export interface PlayerBiometrics {
+  /** @nullable */
+  heightCm?: number | null;
+  /** @nullable */
+  weightKg?: number | null;
+  /** @nullable */
+  bodyFatPct?: number | null;
+  /** @nullable */
+  squat1rm?: number | null;
+  /** @nullable */
+  bench1rm?: number | null;
+  /** @nullable */
+  deadlift1rm?: number | null;
+  /** @nullable */
+  ohp1rm?: number | null;
+  /** @nullable */
+  row1rm?: number | null;
+  equipmentTypes?: string[];
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface PlayerBiometricsUpdate {
+  /** @nullable */
+  heightCm?: number | null;
+  /** @nullable */
+  weightKg?: number | null;
+  /** @nullable */
+  bodyFatPct?: number | null;
+  /** @nullable */
+  squat1rm?: number | null;
+  /** @nullable */
+  bench1rm?: number | null;
+  /** @nullable */
+  deadlift1rm?: number | null;
+  /** @nullable */
+  ohp1rm?: number | null;
+  /** @nullable */
+  row1rm?: number | null;
+  equipmentTypes?: string[];
+  /** @nullable */
+  notes?: string | null;
 }
 
 export type RaidClaimResultNewAchievementsItem = { [key: string]: unknown };
