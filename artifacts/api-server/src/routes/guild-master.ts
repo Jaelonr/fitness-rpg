@@ -1,97 +1,272 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { conversations, messages, playerTable, questsTable, questTasksTable } from "@workspace/db";
+import {
+  conversations, messages,
+  questsTable, questTasksTable,
+  workoutSessionsTable, nutritionLogsTable,
+  bossRaidsTable, playerStyleIdentityTable,
+  personalRecordsTable, rpgGearTable,
+  wearableEntriesTable, guildReportsTable,
+} from "@workspace/db";
 import { CAMPAIGN_QUESTS, getQuestById } from "../data/campaign-quests";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc, gte, count } from "drizzle-orm";
 import { getOrCreatePlayer } from "../progression";
 
 const router = Router();
-
 const GUILD_MASTER_CONTEXT = "guild_master";
+const DAILY_MESSAGE_LIMIT = 5;
 
-const GRANDMASTER_ALDRIC_SYSTEM_PROMPT = (player: {
-  name: string;
-  level: number;
-  rank: string;
-  totalXp: number;
-  currentStreak: number;
-  dominantStyle: string | null;
-  recentActivity: string;
-}) => `You are Grandmaster Aldric, the weathered and wise Guild Master of the Hunter's Guild.
+// ── Context Builder ───────────────────────────────────────────────────────────
 
-CHARACTER:
-- Age: mid-60s, silver-haired, battle-scarred, calm bearing
-- Tone: serious, direct, warm beneath the surface — never uses shame, sarcasm, or toxic positivity
-- Voice: speaks in measured sentences; uses the hunter's world as metaphor for real fitness
-- Philosophy: growth is the only true victory; stagnation is the only true enemy
-- Backstory: Once an S-Rank hunter himself, retired after a gate incident that cost him two fingers on his left hand. He knows what it is to push too far, and what it costs to stop too soon.
-- Never breaks character. The guild hall, gates, quests, and ranks are real to him.
+async function buildPlayerContext(playerId: number) {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const cutoffDate = sevenDaysAgo.toISOString().split("T")[0];
 
-YOUR HUNTER'S CURRENT STATUS:
-- Name: ${player.name}
-- Level: ${player.level}
-- Rank: ${player.rank}
-- Total XP: ${player.totalXp.toLocaleString()}
-- Training Streak: ${player.currentStreak} days
-- Combat Style: ${player.dominantStyle || "undetermined — train more to reveal it"}
-- Recent Activity: ${player.recentActivity}
+  const [recentSessions, recentNutrition, allQuestStatuses, activeRaids, styleRows, recentPRs, equippedGear, recentWearables] = await Promise.all([
+    db.select({
+      name: workoutSessionsTable.name,
+      completedAt: workoutSessionsTable.completedAt,
+      durationMinutes: workoutSessionsTable.durationMinutes,
+      xpEarned: workoutSessionsTable.xpEarned,
+    }).from(workoutSessionsTable)
+      .where(and(eq(workoutSessionsTable.playerId, playerId), eq(workoutSessionsTable.status, "completed")))
+      .orderBy(desc(workoutSessionsTable.completedAt))
+      .limit(5),
 
-GUIDANCE PRINCIPLES:
-1. Treat the player's real-world fitness data as their guild record — reference it naturally
-2. Give specific, actionable advice based on their actual stats when asked
-3. When they seem discouraged, acknowledge it without dismissing it — then redirect with purpose
-4. Celebrate genuine progress, not just effort — results matter here
-5. Keep responses 2-4 paragraphs unless a detailed plan is requested
-6. Never tell them to "just believe in themselves" — give them a specific next action instead
-7. If they haven't trained recently, name it directly but without judgment: "The board shows no activity this week, Hunter."
+    db.select({
+      date: nutritionLogsTable.date,
+      calories: nutritionLogsTable.calories,
+      protein: nutritionLogsTable.protein,
+    }).from(nutritionLogsTable)
+      .where(and(eq(nutritionLogsTable.playerId, playerId), gte(nutritionLogsTable.date, cutoffDate)))
+      .orderBy(desc(nutritionLogsTable.date))
+      .limit(21),
 
-WORLD FLAVOR:
-- The guild hall smells of old stone and lamp oil
-- Hunters come and go with missions from the board
-- The training yard is visible through the window
-- Aldric keeps a battered logbook that he cross-references during conversations
-- He occasionally references other hunters obliquely ("I had a hunter once, C-Rank, trained like you...")
+    db.select({ status: questsTable.status }).from(questsTable).where(eq(questsTable.playerId, playerId)),
 
-Begin each new conversation with a brief acknowledgment of their current standing and one observation about their recent activity.`;
+    db.select({ id: bossRaidsTable.id, status: bossRaidsTable.status, difficulty: bossRaidsTable.difficulty })
+      .from(bossRaidsTable)
+      .where(eq(bossRaidsTable.playerId, playerId))
+      .limit(5),
 
-async function getOrCreateGMConversation(playerId: number): Promise<number> {
-  const existing = await db
-    .select()
-    .from(conversations)
-    .where(and(eq(conversations.playerId, playerId), eq(conversations.context, GUILD_MASTER_CONTEXT)))
-    .limit(1);
+    db.select().from(playerStyleIdentityTable).where(eq(playerStyleIdentityTable.playerId, playerId)).limit(1),
 
-  if (existing.length > 0) {
-    return existing[0].id;
+    db.select({
+      exerciseName: personalRecordsTable.exerciseName,
+      weight: personalRecordsTable.weight,
+      reps: personalRecordsTable.reps,
+      achievedAt: personalRecordsTable.achievedAt,
+    }).from(personalRecordsTable)
+      .where(eq(personalRecordsTable.playerId, playerId))
+      .orderBy(desc(personalRecordsTable.achievedAt))
+      .limit(3),
+
+    db.select({ name: rpgGearTable.name, slot: rpgGearTable.slot, rarity: rpgGearTable.rarity })
+      .from(rpgGearTable)
+      .where(and(eq(rpgGearTable.playerId, playerId), eq(rpgGearTable.equipped, true)))
+      .limit(8),
+
+    db.select().from(wearableEntriesTable)
+      .where(and(eq(wearableEntriesTable.playerId, playerId), gte(wearableEntriesTable.date, cutoffDate)))
+      .orderBy(desc(wearableEntriesTable.date))
+      .limit(7),
+  ]);
+
+  const activeQuestCount = allQuestStatuses.filter(q => q.status === "active" || q.status === "completed").length;
+  const completedQuestCount = allQuestStatuses.filter(q => q.status === "claimed").length;
+  const activeRaidCount = activeRaids.filter(r => r.status === "active").length;
+  const styleIdentity = styleRows[0] ?? null;
+
+  return { recentSessions, recentNutrition, activeQuestCount, completedQuestCount, activeRaidCount, activeRaids, styleIdentity, recentPRs, equippedGear, recentWearables };
+}
+
+// ── System Prompt ─────────────────────────────────────────────────────────────
+
+function buildSystemPrompt(
+  player: { name: string; level: number; rank: string; totalXp: number; streakDays: number; baseClass: string | null },
+  context: Awaited<ReturnType<typeof buildPlayerContext>>,
+  narrativeMode: "technical" | "balanced" | "immersive"
+): string {
+  // Training history
+  const trainingHistory = context.recentSessions.length > 0
+    ? context.recentSessions.map(s => {
+        const date = s.completedAt ? new Date(s.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "unknown date";
+        const dur = s.durationMinutes ? `${s.durationMinutes} min` : "";
+        const xp = s.xpEarned ? `+${s.xpEarned} XP` : "";
+        return `  • ${s.name} (${[date, dur, xp].filter(Boolean).join(", ")})`;
+      }).join("\n")
+    : "  • No completed sessions found.";
+
+  // Nutrition summary
+  const nutritionByDay: Record<string, { calories: number; protein: number }> = {};
+  for (const log of context.recentNutrition) {
+    if (!nutritionByDay[log.date]) nutritionByDay[log.date] = { calories: 0, protein: 0 };
+    nutritionByDay[log.date].calories += log.calories;
+    nutritionByDay[log.date].protein += Math.round(log.protein);
+  }
+  const nutritionSummary = Object.entries(nutritionByDay).slice(0, 7)
+    .map(([date, d]) => `  • ${date}: ${d.calories} kcal, ${d.protein}g protein`)
+    .join("\n") || "  • No nutrition logged recently.";
+
+  // Style identity
+  let styleSection = "  • Undetermined — more training data needed.";
+  if (context.styleIdentity) {
+    const si = context.styleIdentity;
+    const styles = [
+      { name: "Strength", score: si.strengthScore },
+      { name: "Striking", score: si.strikingScore },
+      { name: "Conditioning", score: si.conditioningScore },
+      { name: "Grappling", score: si.grapplingScore },
+      { name: "Recovery", score: si.recoveryScore },
+      { name: "Discipline", score: si.disciplineScore },
+    ].sort((a, b) => b.score - a.score).filter(s => s.score > 0);
+    styleSection = `  • Dominant: ${styles[0]?.name ?? "none"} | Sessions: ${si.totalSessions}`;
+    if (si.hybridArchetype) styleSection += `\n  • Archetype: ${si.hybridArchetype}`;
+    if (styles.length > 1) styleSection += `\n  • Secondary: ${styles.slice(1, 3).map(s => s.name).join(", ")}`;
   }
 
-  const [created] = await db
-    .insert(conversations)
-    .values({
-      title: "Guild Master Session",
-      context: GUILD_MASTER_CONTEXT,
-      playerId,
-    })
-    .returning();
+  // PRs
+  const prSection = context.recentPRs.length > 0
+    ? context.recentPRs.map(pr => {
+        const date = pr.achievedAt ? new Date(pr.achievedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+        return `  • ${pr.exerciseName}: ${pr.weight} lbs × ${pr.reps} reps${date ? ` (${date})` : ""}`;
+      }).join("\n")
+    : "  • No personal records on file.";
 
+  // Gear
+  const gearSection = context.equippedGear.length > 0
+    ? context.equippedGear.map(g => `  • ${g.slot}: ${g.name} (${g.rarity})`).join("\n")
+    : "  • No gear equipped.";
+
+  // Raids
+  const raidSection = context.activeRaidCount > 0
+    ? `  • ${context.activeRaidCount} active gate incursion(s)`
+    : "  • No active incursions.";
+
+  // Wearables
+  const wearableSection = context.recentWearables.length > 0
+    ? context.recentWearables.map(w => {
+        const parts: string[] = [];
+        if (w.steps) parts.push(`${w.steps.toLocaleString()} steps`);
+        if (w.sleepHours) parts.push(`${w.sleepHours}h sleep`);
+        if (w.hrv) parts.push(`HRV ${w.hrv}`);
+        if (w.restingHr) parts.push(`RHR ${w.restingHr}bpm`);
+        if (w.caloriesBurned) parts.push(`${w.caloriesBurned} kcal active`);
+        if (w.activeMinutes) parts.push(`${w.activeMinutes} active min`);
+        return `  • ${w.date}: ${parts.join(", ") || "entry logged"}`;
+      }).join("\n")
+    : "  • No wearable data synced.";
+
+  const modeInstructions: Record<string, string> = {
+    technical: `NARRATIVE MODE — TECHNICAL
+Reference real fitness data and numbers directly. Say exactly what the record shows.
+"You completed 3 sessions this week — bench press at 185 lbs, two conditioning days."
+Use guild framing lightly. Let the data speak plainly. Aldric is in coach mode.`,
+
+    balanced: `NARRATIVE MODE — BALANCED
+Blend real metrics naturally into the guild world.
+"Five sessions this week — that's solid. Your endurance work is paying off at 3.5 miles a run."
+Reference actual numbers in context. Be both coach and guild master.`,
+
+    immersive: `NARRATIVE MODE — IMMERSIVE
+Translate all fitness data into guild/battle narrative. Never use: heart rate, calories, reps, sets, miles, lbs, kg, minutes, kcal.
+Translation rules:
+  - High heart rate → "your battle reserves were pushed to their limit"
+  - Long endurance session → "you marched tirelessly across hostile territory"
+  - Poor sleep → "the healers believe your body has not fully recovered its vitality"
+  - Low HRV → "your reserves are strained — the body remembers every battle"
+  - Strong HRV → "your recovery is formidable — your vitality deepens"
+  - Improved resting HR → "your body stays calm, even before the gates open"
+  - PRs → "you have surpassed your own limits once again, Hunter"
+  - Missing training → "the board shows no missions recorded this week"
+  - Good nutrition → "you have been diligent at the table — your body is well-fueled for the road ahead"
+Stay completely in-world. The logbook holds guild records, not fitness data.`,
+  };
+
+  return `You are Grandmaster Aldric, Guild Master of the Hunter's Guild.
+
+CHARACTER:
+- Age: mid-60s. Silver hair, battle-scarred face, calm bearing that commands the room.
+- Voice: measured, direct, warm beneath the surface. No shame. No toxic positivity. No sarcasm.
+- Philosophy: growth is the only true victory; stagnation is the only true enemy.
+- Backstory: former S-Rank hunter. Retired after a gate incident that cost him two fingers on his left hand. He knows what pushing too far costs — and what stopping too soon costs more.
+- Never breaks character. The guild hall, gates, ranks, and quests are real to him.
+- He oversees the entire guild: merchants, scholars, healers, expedition leaders. He is busy — but he makes time.
+
+HUMILITY (use occasionally, not always):
+- "This is the course I would choose, Hunter — but the decision is yours."
+- "There are many paths through a gate."
+- "I can offer guidance. You must walk the road."
+
+HUNTER'S GUILD RECORD — ${player.name.toUpperCase()}:
+  Level ${player.level} | ${player.rank}-Rank | Class: ${player.baseClass ?? "unassigned"}
+  Total XP: ${player.totalXp.toLocaleString()}
+  Training Streak: ${player.streakDays} day(s)
+  Active Missions: ${context.activeQuestCount} | Completed: ${context.completedQuestCount}
+
+RECENT TRAINING HISTORY (last 5 sessions):
+${trainingHistory}
+
+NUTRITION LOG (last 7 days):
+${nutritionSummary}
+
+GATE INCURSIONS (Boss Raids):
+${raidSection}
+
+COMBAT STYLE IDENTITY:
+${styleSection}
+
+PERSONAL RECORDS (recent):
+${prSection}
+
+ARMORY (equipped):
+${gearSection}
+
+VITALS & RECOVERY (wearable data):
+${wearableSection}
+
+${modeInstructions[narrativeMode] ?? modeInstructions.balanced}
+
+RESPONSE GUIDELINES:
+1. Keep responses 2–4 paragraphs unless a detailed plan is requested.
+2. Begin new conversations with a brief acknowledgment of their current standing and one observation about recent activity.
+3. Give specific, actionable advice — never just "believe in yourself."
+4. Reference their actual record naturally, as if reading from the logbook.
+5. When they haven't trained: state it directly but without judgment.
+6. Celebrate genuine progress — results matter, not just attendance.`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function getOrCreateGMConversation(playerId: number): Promise<number> {
+  const existing = await db.select().from(conversations)
+    .where(and(eq(conversations.playerId, playerId), eq(conversations.context, GUILD_MASTER_CONTEXT)))
+    .limit(1);
+  if (existing.length > 0) return existing[0].id;
+
+  const [created] = await db.insert(conversations).values({
+    title: "Guild Master Session",
+    context: GUILD_MASTER_CONTEXT,
+    playerId,
+  }).returning();
   return created.id;
 }
+
+// ── GET /guild-master/conversation ────────────────────────────────────────────
 
 router.get("/guild-master/conversation", async (req, res) => {
   try {
     const { player } = await getOrCreatePlayer(req.userId!);
     const convId = await getOrCreateGMConversation(player.id);
-
-    const msgs = await db
-      .select()
-      .from(messages)
+    const msgs = await db.select().from(messages)
       .where(eq(messages.conversationId, convId))
       .orderBy(asc(messages.createdAt));
 
     res.json({
       conversationId: convId,
-      messages: msgs.map((m) => ({
+      messages: msgs.map(m => ({
         id: m.id,
         role: m.role,
         content: m.content,
@@ -104,10 +279,13 @@ router.get("/guild-master/conversation", async (req, res) => {
   }
 });
 
+// ── POST /guild-master/messages ───────────────────────────────────────────────
+
 router.post("/guild-master/messages", async (req, res) => {
-  const { content, conversationId } = req.body as {
+  const { content, conversationId, narrativeMode = "balanced" } = req.body as {
     content: string;
     conversationId: number;
+    narrativeMode?: "technical" | "balanced" | "immersive";
   };
 
   if (!content || typeof content !== "string" || content.trim().length === 0) {
@@ -118,59 +296,67 @@ router.post("/guild-master/messages", async (req, res) => {
   try {
     const { player } = await getOrCreatePlayer(req.userId!);
 
-    // Verify this conversation belongs to this player
-    const [conv] = await db
-      .select()
-      .from(conversations)
+    const [conv] = await db.select().from(conversations)
       .where(and(eq(conversations.id, conversationId), eq(conversations.playerId, player.id)))
       .limit(1);
-
     if (!conv) {
       res.status(404).json({ error: "Conversation not found" });
       return;
     }
 
-    // Load message history (last 20 to keep token count manageable)
-    const history = await db
-      .select()
-      .from(messages)
+    // Daily limit check
+    const todayMidnight = new Date();
+    todayMidnight.setUTCHours(0, 0, 0, 0);
+    const [limitRow] = await db.select({ total: count() }).from(messages)
+      .where(and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.role, "user"),
+        gte(messages.createdAt, todayMidnight)
+      ));
+    if ((limitRow?.total ?? 0) >= DAILY_MESSAGE_LIMIT) {
+      // Stream Aldric's limit message
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+      const limitMsg = "I have spoken with many hunters today, and the guild demands my attention elsewhere. Return tomorrow, Hunter — I will have more time for you then. Rest, and let your training do its work tonight.";
+      res.write(`data: ${JSON.stringify({ content: limitMsg })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, limitReached: true })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // Load recent history (last 20 messages for context)
+    const history = await db.select().from(messages)
       .where(eq(messages.conversationId, conversationId))
       .orderBy(asc(messages.createdAt))
       .limit(20);
 
     // Save user message
-    await db.insert(messages).values({
-      conversationId,
-      role: "user",
-      content: content.trim(),
-    });
+    await db.insert(messages).values({ conversationId, role: "user", content: content.trim() });
 
-    const p = player;
-    const recentActivity =
-      p.streakDays > 0
-        ? `Active — ${p.streakDays}-day training streak`
-        : "No recent training logged this week";
-
-    const systemPrompt = GRANDMASTER_ALDRIC_SYSTEM_PROMPT({
-      name: p.name || "Hunter",
-      level: p.level,
-      rank: p.rank,
-      totalXp: p.totalXpEarned,
-      currentStreak: p.streakDays,
-      dominantStyle: (p as any).dominantStyle ?? null,
-      recentActivity,
-    });
+    // Build enriched context
+    const context = await buildPlayerContext(player.id);
+    const systemPrompt = buildSystemPrompt(
+      {
+        name: player.name || "Hunter",
+        level: player.level,
+        rank: player.rank,
+        totalXp: player.totalXpEarned,
+        streakDays: player.streakDays,
+        baseClass: (player as any).baseClass ?? null,
+      },
+      context,
+      narrativeMode
+    );
 
     const openaiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
-      ...history.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
+      ...history.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: content.trim() },
     ];
 
-    // Set up SSE
+    // Stream response
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -185,7 +371,6 @@ router.post("/guild-master/messages", async (req, res) => {
     });
 
     let fullResponse = "";
-
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
@@ -197,13 +382,8 @@ router.post("/guild-master/messages", async (req, res) => {
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
 
-    // Save assistant response
     if (fullResponse) {
-      await db.insert(messages).values({
-        conversationId,
-        role: "assistant",
-        content: fullResponse,
-      });
+      await db.insert(messages).values({ conversationId, role: "assistant", content: fullResponse });
     }
   } catch (err) {
     req.log.error(err, "guild-master message error");
@@ -215,6 +395,129 @@ router.post("/guild-master/messages", async (req, res) => {
     }
   }
 });
+
+// ── GET /guild-master/monthly-report ─────────────────────────────────────────
+
+router.get("/guild-master/monthly-report", async (req, res) => {
+  const month = parseInt(String(req.query.month)) || new Date().getMonth() + 1;
+  const year = parseInt(String(req.query.year)) || new Date().getFullYear();
+
+  if (month < 1 || month > 12 || year < 2024 || year > 2100) {
+    res.status(400).json({ error: "Invalid month or year" });
+    return;
+  }
+
+  try {
+    const { player } = await getOrCreatePlayer(req.userId!);
+
+    // Return cached report if it exists
+    const [cached] = await db.select().from(guildReportsTable)
+      .where(and(eq(guildReportsTable.playerId, player.id), eq(guildReportsTable.month, month), eq(guildReportsTable.year, year)))
+      .limit(1);
+    if (cached) {
+      res.json({ reportText: cached.reportText, month, year, generatedAt: cached.generatedAt.toISOString(), cached: true });
+      return;
+    }
+
+    // Gather monthly stats
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    const startDateStr = startDate.toISOString().split("T")[0];
+    const endDateStr = endDate.toISOString().split("T")[0];
+
+    const [sessions, nutrition, quests, prs, wearables] = await Promise.all([
+      db.select({
+        name: workoutSessionsTable.name,
+        completedAt: workoutSessionsTable.completedAt,
+        durationMinutes: workoutSessionsTable.durationMinutes,
+        xpEarned: workoutSessionsTable.xpEarned,
+      }).from(workoutSessionsTable)
+        .where(and(
+          eq(workoutSessionsTable.playerId, player.id),
+          eq(workoutSessionsTable.status, "completed"),
+          gte(workoutSessionsTable.completedAt, startDate)
+        )).orderBy(desc(workoutSessionsTable.completedAt)),
+
+      db.select({ date: nutritionLogsTable.date, calories: nutritionLogsTable.calories, protein: nutritionLogsTable.protein })
+        .from(nutritionLogsTable)
+        .where(and(eq(nutritionLogsTable.playerId, player.id), gte(nutritionLogsTable.date, startDateStr))),
+
+      db.select({ status: questsTable.status, type: questsTable.type })
+        .from(questsTable)
+        .where(eq(questsTable.playerId, player.id)),
+
+      db.select({ exerciseName: personalRecordsTable.exerciseName, weight: personalRecordsTable.weight, reps: personalRecordsTable.reps, achievedAt: personalRecordsTable.achievedAt })
+        .from(personalRecordsTable)
+        .where(and(eq(personalRecordsTable.playerId, player.id), gte(personalRecordsTable.achievedAt, startDate))),
+
+      db.select().from(wearableEntriesTable)
+        .where(and(eq(wearableEntriesTable.playerId, player.id), gte(wearableEntriesTable.date, startDateStr), gte(wearableEntriesTable.date, startDateStr)))
+        .orderBy(asc(wearableEntriesTable.date)),
+    ]);
+
+    const monthName = new Date(year, month - 1).toLocaleString("en-US", { month: "long" });
+    const totalXp = sessions.reduce((s, r) => s + (r.xpEarned ?? 0), 0);
+    const avgCalories = nutrition.length > 0 ? Math.round(nutrition.reduce((s, n) => s + n.calories, 0) / nutrition.length) : 0;
+    const completedQuestsCount = quests.filter(q => q.status === "claimed").length;
+    const avgSteps = wearables.length > 0 && wearables.some(w => w.steps)
+      ? Math.round(wearables.filter(w => w.steps).reduce((s, w) => s + (w.steps ?? 0), 0) / wearables.filter(w => w.steps).length)
+      : 0;
+    const avgSleep = wearables.length > 0 && wearables.some(w => w.sleepHours)
+      ? (wearables.filter(w => w.sleepHours).reduce((s, w) => s + (w.sleepHours ?? 0), 0) / wearables.filter(w => w.sleepHours).length).toFixed(1)
+      : null;
+
+    const reportPrompt = `You are Grandmaster Aldric. Write an official Guild Performance Report for Hunter ${player.name || "Unknown"} for the month of ${monthName} ${year}.
+
+This is a formal in-world document, written as an official guild record.
+
+MONTHLY DATA:
+- Training sessions completed: ${sessions.length}
+- Total XP earned this month: ${totalXp.toLocaleString()}
+- Average session duration: ${sessions.length > 0 ? Math.round(sessions.reduce((s, r) => s + (r.durationMinutes ?? 0), 0) / sessions.length) : 0} minutes
+- Nutrition days logged: ${[...new Set(nutrition.map(n => n.date))].length}
+- Average daily calories: ${avgCalories}
+- Quests completed: ${completedQuestsCount}
+- Personal records set: ${prs.length}
+- Current rank: ${player.rank} | Level: ${player.level}
+- Training streak at month end: ${player.streakDays} days
+${avgSteps > 0 ? `- Average daily steps: ${avgSteps.toLocaleString()}` : ""}
+${avgSleep ? `- Average sleep: ${avgSleep} hours` : ""}
+
+Write a 4–6 paragraph official guild performance review. Format it as a formal document that Aldric has signed and filed. Include:
+1. A brief opening paragraph assessing overall performance
+2. Observations on training consistency and results
+3. Observations on nutrition/recovery (if data exists)
+4. Areas of strength and areas requiring attention
+5. Official recommendations for the coming month
+6. A closing statement in Aldric's voice
+
+Stay fully in-world. Translate fitness metrics into guild/battle language. This is not a chatbot response — it is an official filed document.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: reportPrompt }],
+      max_tokens: 800,
+      temperature: 0.7,
+    });
+
+    const reportText = completion.choices[0]?.message?.content ?? "The report could not be generated at this time. Check back with the Grandmaster.";
+
+    // Cache the report (no conflict possible — we checked above)
+    await db.insert(guildReportsTable).values({
+      playerId: player.id,
+      month,
+      year,
+      reportText,
+    });
+
+    res.json({ reportText, month, year, generatedAt: new Date().toISOString(), cached: false });
+  } catch (err) {
+    req.log.error(err, "monthly report error");
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// ── POST /guild-master/campaign-quests/:campaignId/start ──────────────────────
 
 router.post("/guild-master/campaign-quests/:campaignId/start", async (req, res) => {
   const campaignId = parseInt(req.params.campaignId);
@@ -231,35 +534,28 @@ router.post("/guild-master/campaign-quests/:campaignId/start", async (req, res) 
 
   try {
     const { player } = await getOrCreatePlayer(req.userId!);
-
     const titlePrefix = `[Campaign] Q${String(campaignId).padStart(3, "0")}:`;
 
-    const existing = await db
-      .select()
-      .from(questsTable)
+    const existing = await db.select().from(questsTable)
       .where(and(eq(questsTable.playerId, player.id), eq(questsTable.type, "main")));
-
-    const alreadyStarted = existing.find((q) => q.title.startsWith(titlePrefix));
+    const alreadyStarted = existing.find(q => q.title.startsWith(titlePrefix));
     if (alreadyStarted) {
       res.status(409).json({ error: "Quest already started", quest: alreadyStarted });
       return;
     }
 
-    const [quest] = await db
-      .insert(questsTable)
-      .values({
-        playerId: player.id,
-        type: "main",
-        title: `${titlePrefix} ${questDef.title}`,
-        description: questDef.description,
-        xpReward: questDef.xpReward,
-        goldReward: questDef.goldReward,
-        status: "active",
-      })
-      .returning();
+    const [quest] = await db.insert(questsTable).values({
+      playerId: player.id,
+      type: "main",
+      title: `${titlePrefix} ${questDef.title}`,
+      description: questDef.description,
+      xpReward: questDef.xpReward,
+      goldReward: questDef.goldReward,
+      status: "active",
+    }).returning();
 
     await db.insert(questTasksTable).values(
-      questDef.tasks.map((t) => ({
+      questDef.tasks.map(t => ({
         questId: quest.id,
         description: t.description,
         targetValue: t.targetValue,

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-export type NarrativeIntensity = "minimal" | "balanced" | "dramatic";
+export type NarrativeIntensity = "technical" | "balanced" | "immersive";
 
 export interface AppSettings {
   notifications: {
@@ -68,7 +68,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     crashReports: true,
   },
   narrative: {
-    intensity: "balanced",
+    intensity: "balanced" as NarrativeIntensity,
   },
 };
 

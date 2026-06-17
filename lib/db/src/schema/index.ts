@@ -12,3 +12,5 @@ export * from "./push-subscriptions";
 export * from "./combat";
 export * from "./conversations";
 export * from "./messages";
+export * from "./wearables";
+export * from "./guild-reports";

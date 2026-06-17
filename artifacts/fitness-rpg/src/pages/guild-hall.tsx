@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "wouter";
+import { useSettings } from "@/hooks/use-settings";
 import {
   useGetGuildMasterConversation,
   useGetQuests,
@@ -432,10 +434,12 @@ function GuildMasterChatModal({
   open,
   onClose,
   conversationData,
+  narrativeMode = "balanced",
 }: {
   open: boolean;
   onClose: () => void;
   conversationData?: GuildMasterConversation;
+  narrativeMode?: "technical" | "balanced" | "immersive";
 }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -484,7 +488,7 @@ function GuildMasterChatModal({
       const res = await fetch("/api/guild-master/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, conversationId: convId }),
+        body: JSON.stringify({ content: text, conversationId: convId, narrativeMode }),
       });
 
       if (!res.ok || !res.body) throw new Error("Stream failed");
@@ -635,8 +639,11 @@ export default function GuildHall() {
   const [chatOpen, setChatOpen] = useState(false);
   const [ambientIdx, setAmbientIdx] = useState(0);
   const [startingCampaignId, setStartingCampaignId] = useState<number | null>(null);
+  const [report, setReport] = useState<{ text: string; month: number; year: number } | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const { data: player } = useGetPlayer();
   const { data: allQuests = [] } = useGetQuests();
@@ -692,6 +699,21 @@ export default function GuildHall() {
       toast({ title: "Could not start quest", variant: "destructive" });
     } finally {
       setStartingCampaignId(null);
+    }
+  };
+
+  const generateReport = async () => {
+    setReportLoading(true);
+    try {
+      const now = new Date();
+      const res = await fetch(`/api/guild-master/monthly-report?month=${now.getMonth() + 1}&year=${now.getFullYear()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setReport({ text: data.reportText, month: data.month, year: data.year });
+    } catch {
+      toast({ title: "The report could not be retrieved at this time.", variant: "destructive" });
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -792,6 +814,8 @@ export default function GuildHall() {
               { v: "raids",    label: "Raids",    icon: <Skull className="w-3 h-3" /> },
               { v: "done",     label: "Done",     icon: <CheckCircle2 className="w-3 h-3" /> },
               { v: "records",  label: "Records",  icon: <Trophy className="w-3 h-3" /> },
+              { v: "log",      label: "Log",      icon: <BookOpen className="w-3 h-3" /> },
+              { v: "report",   label: "Report",   icon: <Sparkles className="w-3 h-3" /> },
             ].map(({ v, label, icon }) => (
               <TabsTrigger key={v} value={v} className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg flex-shrink-0">
                 {icon}{label}
@@ -957,6 +981,81 @@ export default function GuildHall() {
               <div className="text-[10px] text-muted-foreground/40 text-center mt-1">— Grandmaster Aldric</div>
             </Card>
           </TabsContent>
+          {/* ── BATTLE LOG ── */}
+          <TabsContent value="log" className="mt-4 space-y-3">
+            <h2 className="text-sm font-semibold text-foreground/80">Battle Log</h2>
+            <Card className="border border-cyan-900/40 bg-cyan-950/10 p-4">
+              <p className="text-xs text-muted-foreground/70 mb-1 leading-relaxed">
+                Every completed training session is converted into a battle chronicle — encounter, enemy, combat style, and victory summary.
+              </p>
+              <p className="text-[11px] text-muted-foreground/50 mb-4 italic">
+                "The logbook does not lie. It shows what was done, not what was intended." — Aldric
+              </p>
+              <Link href="/battle-log">
+                <Button className="w-full bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/40 text-cyan-300 text-xs h-9">
+                  <BookOpen className="w-3.5 h-3.5 mr-1.5" />Open Battle Chronicles
+                </Button>
+              </Link>
+            </Card>
+          </TabsContent>
+
+          {/* ── MONTHLY REPORT ── */}
+          <TabsContent value="report" className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground/80">Monthly Guild Assessment</h2>
+              <span className="text-[10px] text-muted-foreground/50">Official review</span>
+            </div>
+            {report ? (
+              <Card className="border border-amber-800/40 bg-amber-950/10 p-4">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-amber-800/30">
+                  <Crown className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs font-bold text-amber-400 tracking-wide uppercase">
+                    {new Date(report.year, report.month - 1).toLocaleString("en-US", { month: "long", year: "numeric" })} — Field Assessment
+                  </span>
+                </div>
+                <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{report.text}</div>
+                <div className="mt-4 pt-3 border-t border-amber-800/20 flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground/40 italic">Sealed and filed by the Guild Master</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] text-amber-600/60 hover:text-amber-400 h-6 px-2"
+                    onClick={() => setReport(null)}
+                  >
+                    View another month
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                <Card className="border border-border/40 bg-card/50 p-5 text-center">
+                  <Sparkles className="w-8 h-8 mx-auto mb-2 text-amber-500/30" />
+                  <p className="text-sm text-foreground/70 font-medium mb-1">Current Month Report</p>
+                  <p className="text-xs text-muted-foreground/60 mb-4 leading-relaxed">
+                    Grandmaster Aldric reviews your full guild record — training, nutrition, quests, raids, and recovery — and files an official performance assessment.
+                  </p>
+                  <Button
+                    onClick={generateReport}
+                    disabled={reportLoading}
+                    className="bg-amber-800/60 hover:bg-amber-700/80 border border-amber-700/50 text-amber-200 text-xs h-9 px-5"
+                  >
+                    {reportLoading ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Aldric is reviewing your record…</>
+                    ) : (
+                      <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Request Monthly Assessment</>
+                    )}
+                  </Button>
+                </Card>
+                <Card className="border border-amber-800/30 bg-amber-950/10 p-3">
+                  <p className="text-[11px] text-amber-400/60 italic text-center leading-relaxed">
+                    "Every number on that board represents a choice you made to show up when it would have been easier not to."
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/40 text-center mt-1">— Grandmaster Aldric</p>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
         </Tabs>
       </div>
 
@@ -965,6 +1064,7 @@ export default function GuildHall() {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         conversationData={convData}
+        narrativeMode={settings.narrative.intensity}
       />
     </div>
   );

@@ -8,8 +8,7 @@ import {
   Swords,
   BarChart3,
   User,
-  Users,
-  BookOpen,
+  Watch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +18,7 @@ const navItems = [
   { href: "/training", icon: Dumbbell, label: "Training" },
   { href: "/guild-hall", icon: Landmark, label: "Hall" },
   { href: "/raids", icon: Swords, label: "Raids" },
-  { href: "/battle-log", icon: BookOpen, label: "Log" },
-  { href: "/guilds", icon: Users, label: "Guild" },
+  { href: "/wearables", icon: Watch, label: "Vitals" },
   { href: "/world", icon: Globe, label: "World" },
   { href: "/analytics", icon: BarChart3, label: "Records" },
   { href: "/profile", icon: User, label: "Profile" },

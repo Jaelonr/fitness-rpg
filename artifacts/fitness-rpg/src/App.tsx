@@ -26,6 +26,7 @@ import Settings from "@/pages/settings";
 import Program from "@/pages/program";
 import World from "@/pages/world";
 import Guilds from "@/pages/guilds";
+import Wearables from "@/pages/wearables";
 import Onboarding from "@/pages/onboarding";
 import CharacterSetup from "@/pages/character-setup";
 import ClassPage from "@/pages/class";
@@ -144,6 +145,7 @@ function AppRoutes() {
         <Route path="/battle-log" component={BattleLog} />
         <Route path="/world" component={World} />
         <Route path="/guilds" component={Guilds} />
+        <Route path="/wearables" component={Wearables} />
         <Route path="/class" component={ClassPage} />
         <Route path="/inventory" component={Inventory} />
         <Route path="/analytics" component={Analytics} />

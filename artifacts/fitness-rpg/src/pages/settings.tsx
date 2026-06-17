@@ -390,9 +390,9 @@ export default function Settings() {
           </div>
           <div className="space-y-2 ml-11">
             {([
-              { id: "minimal",  label: "Minimal",  desc: "Stats only. No story text." },
-              { id: "balanced", label: "Balanced", desc: "Brief battle narrative after each session." },
-              { id: "dramatic", label: "Epic",     desc: "Full cinematic combat story. Maximum immersion." },
+              { id: "technical",  label: "Technical",  desc: "Real fitness data. Sets, reps, numbers — no story text." },
+              { id: "balanced",   label: "Balanced",   desc: "Mix of guild narrative and actual training metrics." },
+              { id: "immersive",  label: "Immersive",  desc: "Full fantasy language. Your workout becomes an epic." },
             ] as const).map(opt => (
               <button
                 key={opt.id}
@@ -525,11 +525,11 @@ export default function Settings() {
             <p className="text-sm font-semibold text-foreground mb-0.5">Battle Narrative Intensity</p>
             <p className="text-xs text-muted-foreground mb-4">Controls how your workout results are told as a combat story when finishing a session.</p>
             <div className="space-y-2.5">
-              {(["minimal", "balanced", "dramatic"] as const).map(level => {
+              {(["technical", "balanced", "immersive"] as const).map(level => {
                 const meta = {
-                  minimal:  { label: "Minimal",  desc: "Clean stats only. No story, just the numbers.",       icon: "📊", color: "text-gray-400" },
-                  balanced: { label: "Balanced",  desc: "Short narrative with key combat moments.",            icon: "⚔️", color: "text-cyan-400" },
-                  dramatic: { label: "Dramatic",  desc: "Full cinematic narrative with detailed epic events.", icon: "🔥", color: "text-orange-400" },
+                  technical: { label: "Technical", desc: "Real fitness data. Sets, reps, numbers — no story text.", icon: "📊", color: "text-gray-400" },
+                  balanced:  { label: "Balanced",  desc: "Mix of guild narrative and actual training metrics.",    icon: "⚔️", color: "text-cyan-400" },
+                  immersive: { label: "Immersive", desc: "Full fantasy language. Your workout becomes an epic.",   icon: "🔥", color: "text-orange-400" },
                 }[level];
                 const active = (settings.narrative?.intensity ?? "balanced") === level;
                 return (
