@@ -39,9 +39,21 @@ Raids unlock based on `triggerCondition` field: `streak_7`, `streak_30`, `rank_D
 
 ## Isekai story system
 
-Story state lives entirely in `src/hooks/use-story.ts` (client-side, no backend). Two localStorage keys:
-- `rpg_onboarding_v2` — whether the user has seen the cinematic intro
-- Onboarding guard in `AppRoutes` redirects to `/onboarding` if key unset
+Story state lives entirely in `src/hooks/use-story.ts` (client-side, no backend). localStorage keys:
+- `rpg_onboarding_v2` — cinematic intro seen
+- `rpg_setup_v1` — character questionnaire completed
+- `rpg_class_base_v1` — assigned base class id (e.g. "warrior")
+- Onboarding guard in `AppRoutes`: no onboarding key → /onboarding; no setup key → /setup; else main app
+
+## Class system
+
+All class data lives in `src/hooks/use-class.ts` (client-side only, no DB). Key design:
+- 6 base classes: warrior, berserker, ranger, rogue, monk, tactician — assigned by scoring questionnaire stat bonuses against class stat weights
+- Each has 6 evolution tiers unlocking at Lv 1/15/30/50/70/90 with 3 abilities each (passive/active)
+- 6 Apex hybrid classes unlock at Lv 80 — each blends 2 base class trees
+- Class page at /class shows evolution timeline; class name appears on dashboard under player name (clickable → /class)
+
+**Why client-only:** Class is deterministic from questionnaire stats and level — no DB column needed. `storeBaseClass()` writes to localStorage after setup, `getStoredBaseClass()` reads it everywhere.
 
 Arc and boss progression are computed from player level (from the existing API). No extra DB columns needed — level is the proxy for world progress. World danger = `getWorldDanger(level)`.
 

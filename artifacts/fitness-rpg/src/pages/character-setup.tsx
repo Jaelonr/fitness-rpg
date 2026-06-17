@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSetupPlayer } from "@workspace/api-client-react";
 import { markSetupComplete } from "@/hooks/use-story";
+import { determineBaseClass, getBaseClass, getCurrentEvolution, storeBaseClass } from "@/hooks/use-class";
 import { cn } from "@/lib/utils";
 
 // ── Stat types ─────────────────────────────────────────────────────────────
@@ -220,20 +221,7 @@ const STYLES = [
   },
 ];
 
-// ── Archetype derivation ────────────────────────────────────────────────────
-function getArchetype(b: StatBonuses): { name: string; rank: string; color: string } {
-  const entries: [keyof StatBonuses, number][] = Object.entries(b) as [keyof StatBonuses, number][];
-  const top = entries.reduce((a, c) => (c[1] > a[1] ? c : a), ["strength" as keyof StatBonuses, -1]);
-  switch (top[0]) {
-    case "strength": return { name: "Vanguard Knight", rank: "B", color: "text-red-400" };
-    case "agility":  return { name: "Shadow Blade",    rank: "B", color: "text-green-400" };
-    case "stamina":  return { name: "Iron Sentinel",   rank: "B", color: "text-teal-400" };
-    case "vitality": return { name: "Stone Guardian",  rank: "B", color: "text-blue-400" };
-    case "discipline": return { name: "Arcane Tactician", rank: "B", color: "text-violet-400" };
-    case "sense":    return { name: "Seer of Aethoria", rank: "B", color: "text-cyan-400" };
-    default:         return { name: "Wandering Hunter", rank: "C", color: "text-amber-400" };
-  }
-}
+// ── Archetype derivation handled by use-class ──────────────────────────────
 
 const STAT_META: { key: keyof StatBonuses; label: string; color: string; bg: string }[] = [
   { key: "strength",   label: "STR", color: "text-red-400",    bg: "bg-red-500" },
@@ -351,6 +339,7 @@ export default function CharacterSetup() {
   async function confirm() {
     const bonuses = totalBonuses();
     const goalObj = GOALS.find(g => g.id === goal);
+    const classId = determineBaseClass(bonuses);
 
     await setupMutation.mutateAsync({
       data: {
@@ -361,13 +350,16 @@ export default function CharacterSetup() {
       },
     });
 
+    storeBaseClass(classId);
     await queryClient.invalidateQueries();
     markSetupComplete();
     navigate("/");
   }
 
   const bonuses = totalBonuses();
-  const archetype = getArchetype(bonuses);
+  const assignedClassId = determineBaseClass(bonuses);
+  const assignedClass = getBaseClass(assignedClassId);
+  const assignedEvo = getCurrentEvolution(assignedClassId, 1);
   const maxBonus = Math.max(...Object.values(bonuses), 1);
 
   const slideClass = animating
@@ -707,11 +699,15 @@ export default function CharacterSetup() {
                 </div>
 
                 {/* Hunter card */}
-                <div className="rounded-xl border border-cyan-900/50 bg-cyan-950/10 p-4 space-y-1">
-                  <p className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">Hunter</p>
+                <div className={cn("rounded-xl border p-4 space-y-1", assignedClass.border, assignedClass.bg)}>
+                  <p className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">Hunter Identified</p>
                   <p className="text-xl font-serif text-white">{hunterName}</p>
-                  <p className={cn("text-xs font-mono font-bold", archetype.color)}>
-                    {archetype.name} · Rank {archetype.rank}
+                  <p className={cn("text-sm font-serif font-bold", assignedClass.color)}>
+                    {assignedEvo.name}
+                  </p>
+                  <p className="text-[9px] font-mono text-muted-foreground">{assignedClass.name} Class · Origin</p>
+                  <p className="text-[10px] text-muted-foreground italic leading-relaxed pt-1">
+                    "{assignedEvo.lore}"
                   </p>
                 </div>
 

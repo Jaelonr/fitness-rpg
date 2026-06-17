@@ -23,6 +23,7 @@ import Program from "@/pages/program";
 import World from "@/pages/world";
 import Onboarding from "@/pages/onboarding";
 import CharacterSetup from "@/pages/character-setup";
+import ClassPage from "@/pages/class";
 import { hasCompletedOnboarding, hasCompletedSetup } from "@/hooks/use-story";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/quests" component={Quests} />
         <Route path="/raids" component={Raids} />
         <Route path="/world" component={World} />
+        <Route path="/class" component={ClassPage} />
         <Route path="/inventory" component={Inventory} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/profile" component={Profile} />

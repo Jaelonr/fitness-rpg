@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { getArcForLevel, getNextBoss, getWorldDanger } from "@/hooks/use-story";
+import { getStoredBaseClass, getBaseClass, getCurrentEvolution } from "@/hooks/use-class";
 import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
@@ -49,6 +50,10 @@ export default function Dashboard() {
   const currentArc = getArcForLevel(player.level);
   const nextBoss = getNextBoss(player.level);
   const worldDanger = getWorldDanger(player.level);
+
+  const storedClassId = getStoredBaseClass();
+  const playerClass = storedClassId ? getBaseClass(storedClassId) : null;
+  const playerEvo = storedClassId ? getCurrentEvolution(storedClassId, player.level) : null;
   
   const totalAllocated = Object.values(allocations).reduce((a, b) => a + b, 0);
   const remainingPoints = player.freeStatPoints - totalAllocated;
@@ -88,6 +93,14 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold font-serif tracking-wider uppercase text-foreground">
                 {player.name}
               </h2>
+              {playerEvo && playerClass && (
+                <button
+                  onClick={() => navigate("/class")}
+                  className={cn("text-xs font-mono font-bold mb-0.5 hover:underline transition-all", playerClass.color)}
+                >
+                  {playerEvo.name} · {playerEvo.awakening}
+                </button>
+              )}
               <p className="text-sm font-mono text-primary mb-2">Level {player.level}</p>
               <StatBar 
                 label="XP" 
