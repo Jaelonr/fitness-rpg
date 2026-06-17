@@ -4,6 +4,7 @@ import {
   useGetArmory, useEquipGear, useGetStoreSections,
   type RpgGear,
 } from "@workspace/api-client-react";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -335,23 +336,37 @@ export default function Inventory() {
         {/* ── Items ───────────────────────────────────────── */}
         <TabsContent value="items" className="pt-4 space-y-3">
           {inventory?.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground border border-border/50 rounded-lg bg-card/20">
-              Your bag is empty.
+            <div className="text-center py-14 border border-dashed border-border/30 rounded-xl">
+              <Backpack className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p className="text-muted-foreground text-sm font-medium">Your bag is empty</p>
+              <p className="text-xs text-muted-foreground mt-1">Purchase items from the store to fill your inventory.</p>
             </div>
           ) : (
-            inventory?.map(item => (
-              <Card key={item.id} className="border-border/50 bg-card/50">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold">{item.itemName}</h3>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
-                  </div>
-                  <div className="font-mono text-sm border border-border/50 px-2 py-1 rounded bg-black/40">
-                    x{item.quantity}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            inventory?.map(item => {
+              const r = RARITY_STYLES[item.rarity ?? "common"] ?? RARITY_STYLES.common;
+              return (
+                <Card key={item.id} className={cn("border overflow-hidden transition-all", r.border, r.bg, r.glow)}>
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="text-xl shrink-0 mt-0.5">{CATEGORY_ICONS[item.itemType ?? "consumable"] ?? "🎁"}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                          <h3 className={cn("font-serif font-bold text-sm leading-tight", r.color)}>{item.itemName}</h3>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono text-xs border border-border/50 px-2 py-0.5 rounded bg-black/40 text-foreground">×{item.quantity}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className={cn("text-[9px] font-mono uppercase tracking-wide", r.color)}>{r.label}</span>
+                          <span className="text-[9px] text-muted-foreground capitalize">{item.itemType?.replace(/_/g, " ")}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{item.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </TabsContent>
 

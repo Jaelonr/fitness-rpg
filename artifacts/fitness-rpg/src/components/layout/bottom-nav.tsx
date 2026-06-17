@@ -4,11 +4,11 @@ import {
   Apple, 
   Dumbbell, 
   Landmark, 
-  Globe,
   Swords,
   BarChart3,
   User,
   Watch,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,10 +16,10 @@ const navItems = [
   { href: "/", icon: Home, label: "Status" },
   { href: "/nutrition", icon: Apple, label: "Nutrition" },
   { href: "/training", icon: Dumbbell, label: "Training" },
-  { href: "/guild-hall", icon: Landmark, label: "Hall" },
+  { href: "/battle-log", icon: ScrollText, label: "Battle" },
   { href: "/raids", icon: Swords, label: "Raids" },
+  { href: "/guild-hall", icon: Landmark, label: "Hall" },
   { href: "/wearables", icon: Watch, label: "Vitals" },
-  { href: "/world", icon: Globe, label: "World" },
   { href: "/analytics", icon: BarChart3, label: "Records" },
   { href: "/profile", icon: User, label: "Profile" },
 ];

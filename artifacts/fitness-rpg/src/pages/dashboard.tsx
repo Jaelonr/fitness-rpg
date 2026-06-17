@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetDashboardSummary, useAllocateStats, PlayerStats } from "@workspace/api-client-react";
+import { useGetDashboardSummary, useAllocateStats, useGetBattleLog, PlayerStats } from "@workspace/api-client-react";
 import { useCountUp } from "@/hooks/use-count-up";
 import { DailyRewardCard } from "@/components/daily-reward";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Swords, Flame, Target, Shield, Plus, Minus, Globe, Skull, ChevronRight } from "lucide-react";
+import { Swords, Flame, Target, Shield, Plus, Minus, Globe, Skull, ChevronRight, ScrollText, Zap, Coins, Trophy } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -57,6 +57,12 @@ export default function Dashboard() {
   const currentArc = getArcForLevel(player.level);
   const nextBoss = getNextBoss(player.level);
   const worldDanger = getWorldDanger(player.level);
+
+  const { data: recentBattles } = useGetBattleLog(
+    { limit: 1 },
+    { query: { queryKey: ["/api/battle-log", { limit: 1 }] } }
+  );
+  const lastBattle = recentBattles?.[0] as any;
 
   const storedClassId = (player.baseClass ?? getStoredBaseClass()) as ReturnType<typeof getStoredBaseClass>;
   const playerClass = storedClassId ? getBaseClass(storedClassId) : null;
@@ -193,6 +199,54 @@ export default function Dashboard() {
 
       {/* Daily Login Reward */}
       <DailyRewardCard />
+
+      {/* Last Battle Card */}
+      {lastBattle && (
+        <button
+          onClick={() => navigate("/battle-log")}
+          className="w-full text-left rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-black/20 overflow-hidden hover:border-primary/40 hover:from-primary/10 transition-all group"
+        >
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <ScrollText className="w-4 h-4 text-primary" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-primary">Last Battle</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </div>
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-serif font-bold text-white truncate">{lastBattle.encounterName}</p>
+                <p className="text-[10px] text-muted-foreground font-mono">vs. {lastBattle.enemyName}</p>
+              </div>
+              <span className={cn(
+                "text-[9px] font-mono border px-2 py-0.5 rounded-full shrink-0 ml-2",
+                lastBattle.verdict?.includes("Victory")
+                  ? "text-yellow-400 border-yellow-400/30 bg-yellow-400/10"
+                  : "text-cyan-400 border-cyan-400/30 bg-cyan-400/10"
+              )}>
+                {lastBattle.verdict}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1 text-cyan-400">
+                <Zap className="w-3 h-3" />
+                <span className="text-[10px] font-mono">+{lastBattle.xpEarned} XP</span>
+              </div>
+              <div className="flex items-center gap-1 text-yellow-400">
+                <Coins className="w-3 h-3" />
+                <span className="text-[10px] font-mono">+{lastBattle.goldEarned}</span>
+              </div>
+              {lastBattle.prCount > 0 && (
+                <div className="flex items-center gap-1 text-yellow-300">
+                  <Trophy className="w-3 h-3" />
+                  <span className="text-[10px] font-mono">{lastBattle.prCount} PR</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </button>
+      )}
 
       {/* World Status Card */}
       <button
