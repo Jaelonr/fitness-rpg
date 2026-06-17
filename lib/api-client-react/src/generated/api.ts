@@ -48,6 +48,8 @@ import type {
   GetWorkoutSessionsParams,
   Guild,
   GuildDetail,
+  GuildMasterConversation,
+  GuildMasterMessageInput,
   HealthStatus,
   InventoryItem,
   JoinGuild200,
@@ -6288,6 +6290,154 @@ export const useUnsubscribePush = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUnsubscribePushMutationOptions(options));
+    }
+
+export const getGetGuildMasterConversationUrl = () => {
+
+
+
+
+  return `/api/guild-master/conversation`
+}
+
+/**
+ * @summary Get or create the Guild Master conversation for the authenticated player
+ */
+export const getGuildMasterConversation = async ( options?: RequestInit): Promise<GuildMasterConversation> => {
+
+  return customFetch<GuildMasterConversation>(getGetGuildMasterConversationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGuildMasterConversationQueryKey = () => {
+    return [
+    `/api/guild-master/conversation`
+    ] as const;
+    }
+
+
+export const getGetGuildMasterConversationQueryOptions = <TData = Awaited<ReturnType<typeof getGuildMasterConversation>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGuildMasterConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGuildMasterConversationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGuildMasterConversation>>> = ({ signal }) => getGuildMasterConversation({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGuildMasterConversation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGuildMasterConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getGuildMasterConversation>>>
+export type GetGuildMasterConversationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get or create the Guild Master conversation for the authenticated player
+ */
+
+export function useGetGuildMasterConversation<TData = Awaited<ReturnType<typeof getGuildMasterConversation>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGuildMasterConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGuildMasterConversationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSendGuildMasterMessageUrl = () => {
+
+
+
+
+  return `/api/guild-master/messages`
+}
+
+/**
+ * @summary Send message to the Guild Master (SSE streaming response)
+ */
+export const sendGuildMasterMessage = async (guildMasterMessageInput: GuildMasterMessageInput, options?: RequestInit): Promise<unknown> => {
+
+  return customFetch<unknown>(getSendGuildMasterMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      guildMasterMessageInput,)
+  }
+);}
+
+
+
+
+export const getSendGuildMasterMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendGuildMasterMessage>>, TError,{data: BodyType<GuildMasterMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendGuildMasterMessage>>, TError,{data: BodyType<GuildMasterMessageInput>}, TContext> => {
+
+const mutationKey = ['sendGuildMasterMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendGuildMasterMessage>>, {data: BodyType<GuildMasterMessageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendGuildMasterMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendGuildMasterMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendGuildMasterMessage>>>
+    export type SendGuildMasterMessageMutationBody = BodyType<GuildMasterMessageInput>
+    export type SendGuildMasterMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send message to the Guild Master (SSE streaming response)
+ */
+export const useSendGuildMasterMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendGuildMasterMessage>>, TError,{data: BodyType<GuildMasterMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendGuildMasterMessage>>,
+        TError,
+        {data: BodyType<GuildMasterMessageInput>},
+        TContext
+      > => {
+      return useMutation(getSendGuildMasterMessageMutationOptions(options));
     }
 
 export const getGetBattleLogUrl = (params?: GetBattleLogParams,) => {

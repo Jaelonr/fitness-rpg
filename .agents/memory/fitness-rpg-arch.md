@@ -118,6 +118,36 @@ Each task in `RAID_TEMPLATES` now has a `taskType` field:
 
 **Service worker** — Updated `public/sw.js` with app shell caching (cache-first for static assets, navigation fallback to `/index.html`). Old caches cleaned on activate.
 
+## Guild Hall & Guild Master
+
+Guild Hall page at `/guild-hall` replaces the Quests nav tab (bottom-nav label "Hall", Landmark icon). 7 tabs: Daily, Weekly, Campaign, Side, Raids, Done, Records.
+
+Campaign quests are stored as `type: "main"` quests with title prefix `[Campaign] Q001: Title`. Frontend parses campaign ID via `/^\[Campaign\] Q(\d+):/`. Campaign progression: `nextCampaignId = highestClaimed + 1`. Start endpoint: `POST /api/guild-master/campaign-quests/:id/start`.
+
+Guild Master (Grandmaster Aldric) chat uses SSE streaming via raw `fetch` (not EventSource) since it sends a POST body. Conversation persisted in `conversations` table with `context: "guild_master"` and `playerId` FK.
+
+**Why:** `Map` from lucide-react shadows the JavaScript `Map` constructor — always alias it: `import { Map as MapIcon } from "lucide-react"`.
+
+## getOrCreatePlayer return shape
+
+`getOrCreatePlayer(clerkId)` returns `{ player, stats }` — NOT the player directly. Always destructure: `const { player } = await getOrCreatePlayer(req.userId!)`. Player streak field is `streakDays` (not `currentStreak`), XP history is `totalXpEarned` (not `totalXp`).
+
+**Why:** Multiple files had `.id` on the return object (TS2339). The progression.ts function always returns `{ player, stats }` at both code paths.
+
+## Combat Style Engine (full implementation)
+
+`artifacts/api-server/src/combat-engine.ts` — 6 styles: strength, striking, conditioning, grappling, recovery, discipline. 3 narrative intensities: minimal, balanced, dramatic. `classifyWorkoutStyle()` scores exercises by keyword matching + weight/rep ranges. `generateCombatReplay()` builds narrative events + enemy from rank-based enemy table. `getHybridArchetype()` returns named archetypes (Warbreaker, Vanguard, Duelist, etc.) for mixed-style sessions.
+
+Wired in `training.ts` — POST /training/sessions/:id (PATCH complete) generates + saves replay to `combat_replays` table, updates `player_style_identity`. Battle Log page reads these and renders with style color system.
+
+## Store (114 items seeded)
+
+`store_items` has 114 items across `section` values: `permanent` (79), `daily` (13), `weekly` (13), `raid` (9). `GET /api/store/sections` rotates daily (5 items) and weekly (6 items) based on day/week-of-year offset. `styleAffinity` column links items to combat styles.
+
+## Narrative intensity setting
+
+`use-settings.ts` hook: `settings.narrative.intensity` (`"minimal" | "balanced" | "dramatic"`, default `"balanced"`). Persisted to `localStorage`. Settings page has a "Gameplay" section to change it. `active-session.tsx` reads it and passes to the complete-session API call as `narrativeIntensity`.
+
 ## Active session page
 
 Rebuilt to full set-by-set tracker: template exercises from `session.templateExercises`, per-set PR badge, 90s rest timer, elapsed timer, end-of-session `SessionSummary` overlay.

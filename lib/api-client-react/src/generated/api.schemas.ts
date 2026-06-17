@@ -1331,6 +1331,23 @@ export type GuildDetail = Guild & {
   activity?: GuildActivityItem[];
 };
 
+export interface GuildMasterMessage {
+  id: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface GuildMasterConversation {
+  conversationId: number;
+  messages: GuildMasterMessage[];
+}
+
+export interface GuildMasterMessageInput {
+  content: string;
+  conversationId: number;
+}
+
 export interface CombatEvent {
   text?: string;
   type?: string;

@@ -2123,6 +2123,29 @@ export const UnsubscribePushResponse = zod.object({
 
 
 /**
+ * @summary Get or create the Guild Master conversation for the authenticated player
+ */
+export const GetGuildMasterConversationResponse = zod.object({
+  "conversationId": zod.number(),
+  "messages": zod.array(zod.object({
+  "id": zod.number(),
+  "role": zod.string(),
+  "content": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Send message to the Guild Master (SSE streaming response)
+ */
+export const SendGuildMasterMessageBody = zod.object({
+  "content": zod.string(),
+  "conversationId": zod.number()
+})
+
+
+/**
  * @summary Get combat replay history
  */
 export const GetBattleLogQueryParams = zod.object({

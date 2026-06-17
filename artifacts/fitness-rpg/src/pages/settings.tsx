@@ -375,6 +375,48 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Gameplay */}
+      <SectionHeader title="Gameplay" icon={Swords} />
+      <Card className="border-border/50 bg-card/50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+              <Swords className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <div className="text-sm font-medium">Narrative Intensity</div>
+              <div className="text-[11px] text-muted-foreground">How your workouts are told as battle stories</div>
+            </div>
+          </div>
+          <div className="space-y-2 ml-11">
+            {([
+              { id: "minimal",  label: "Minimal",  desc: "Stats only. No story text." },
+              { id: "balanced", label: "Balanced", desc: "Brief battle narrative after each session." },
+              { id: "dramatic", label: "Epic",     desc: "Full cinematic combat story. Maximum immersion." },
+            ] as const).map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setSetting("narrative", "intensity", opt.id)}
+                className={cn(
+                  "w-full text-left px-3 py-2.5 rounded-lg border transition-all",
+                  settings.narrative.intensity === opt.id
+                    ? "border-amber-600/60 bg-amber-950/30 text-amber-300"
+                    : "border-border/40 bg-black/10 text-muted-foreground hover:border-amber-800/40 hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold">{opt.label}</span>
+                  {settings.narrative.intensity === opt.id && (
+                    <Check className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                </div>
+                <p className="text-[10px] mt-0.5 opacity-70">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Units & Preferences */}
       <SectionHeader title="Units & Preferences" icon={Scale} />
       <Card className="border-border/50 bg-card/50">

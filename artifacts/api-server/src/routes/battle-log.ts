@@ -41,12 +41,13 @@ router.get("/player/style-identity", async (req, res) => {
       .where(eq(playerStyleIdentityTable.playerId, player.id));
 
     if (!identity) {
-      return res.json({
+      res.json({
         strength: 0, striking: 0, conditioning: 0, grappling: 0, recovery: 0, discipline: 0,
         totalSessions: 0, hybridArchetype: null,
         percentages: { strength: 0, striking: 0, conditioning: 0, grappling: 0, recovery: 0, discipline: 0 },
         dominantStyle: null,
       });
+      return;
     }
 
     const total = identity.strengthScore + identity.strikingScore + identity.conditioningScore

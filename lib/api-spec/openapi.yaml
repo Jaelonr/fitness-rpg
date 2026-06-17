@@ -18,6 +18,7 @@ tags:
   - name: store
   - name: analytics
   - name: dashboard
+  - name: guild
 
 paths:
   /healthz:
@@ -1588,6 +1589,36 @@ paths:
                 properties:
                   success:
                     type: boolean
+
+  /guild-master/conversation:
+    get:
+      operationId: getGuildMasterConversation
+      tags: [guild]
+      summary: Get or create the Guild Master conversation for the authenticated player
+      responses:
+        "200":
+          description: Conversation with message history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildMasterConversation"
+
+  /guild-master/messages:
+    post:
+      operationId: sendGuildMasterMessage
+      tags: [guild]
+      summary: Send message to the Guild Master (SSE streaming response)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuildMasterMessageInput"
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream: {}
 
   /battle-log:
     get:
@@ -3174,6 +3205,39 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/GuildActivityItem"
+
+    GuildMasterMessage:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+
+    GuildMasterConversation:
+      type: object
+      required: [conversationId, messages]
+      properties:
+        conversationId:
+          type: integer
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuildMasterMessage"
+
+    GuildMasterMessageInput:
+      type: object
+      required: [content, conversationId]
+      properties:
+        content:
+          type: string
+        conversationId:
+          type: integer
 
     CombatEvent:
       type: object

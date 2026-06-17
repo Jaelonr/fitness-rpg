@@ -10,3 +10,5 @@ export * from "./guilds";
 export * from "./daily-logins";
 export * from "./push-subscriptions";
 export * from "./combat";
+export * from "./conversations";
+export * from "./messages";

@@ -31,6 +31,7 @@ import CharacterSetup from "@/pages/character-setup";
 import ClassPage from "@/pages/class";
 import Landing from "@/pages/landing";
 import BattleLog from "@/pages/battle-log";
+import GuildHall from "@/pages/guild-hall";
 import { hasCompletedOnboarding, hasCompletedSetup, clearOnboardingAndSetup } from "@/hooks/use-story";
 import { useGetPlayer } from "@workspace/api-client-react";
 
@@ -138,6 +139,7 @@ function AppRoutes() {
         <Route path="/equipment" component={Equipment} />
         <Route path="/skills" component={Skills} />
         <Route path="/quests" component={Quests} />
+        <Route path="/guild-hall" component={GuildHall} />
         <Route path="/raids" component={Raids} />
         <Route path="/battle-log" component={BattleLog} />
         <Route path="/world" component={World} />
