@@ -3,9 +3,9 @@ import { db } from "@workspace/db";
 import {
   playerTable, playerStatsTable, titlesTable, playerTitlesTable,
   achievementsTable, playerAchievementsTable, equipmentTable,
-  playerInventoryTable, storeItemsTable,
+  playerInventoryTable, storeItemsTable, dailyLoginsTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import {
   getOrCreatePlayer, buildPlayerResponse, xpForLevel, rankForLevel, applyXpEvent, getClassXpMultiplier
 } from "../progression";
@@ -396,6 +396,115 @@ router.post("/player/reset", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to reset player" });
+  }
+});
+
+// ── Daily Login Reward ─────────────────────────────────────────────────────
+
+const DAILY_REWARDS: Array<{ day: number; type: string; amount: number; label: string }> = [
+  { day: 1,  type: "gold", amount: 50,   label: "50 Gold" },
+  { day: 2,  type: "xp",   amount: 100,  label: "100 XP" },
+  { day: 3,  type: "gold", amount: 150,  label: "150 Gold" },
+  { day: 4,  type: "xp",   amount: 200,  label: "200 XP" },
+  { day: 5,  type: "gold", amount: 250,  label: "250 Gold" },
+  { day: 6,  type: "xp",   amount: 300,  label: "300 XP" },
+  { day: 7,  type: "gold", amount: 700,  label: "700 Gold (Week Bonus!)" },
+  { day: 14, type: "xp",   amount: 1000, label: "1,000 XP (2-Week Bonus!)" },
+  { day: 30, type: "gold", amount: 3000, label: "3,000 Gold (Monthly Bonus!)" },
+];
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getRewardForDay(streakDay: number) {
+  const milestones = [30, 14, 7];
+  for (const m of milestones) {
+    if (streakDay % m === 0) {
+      return DAILY_REWARDS.find(r => r.day === m) ?? DAILY_REWARDS[(streakDay - 1) % 7];
+    }
+  }
+  return DAILY_REWARDS[(streakDay - 1) % 7];
+}
+
+router.get("/player/daily-reward", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer(req.userId);
+    const today = getTodayDate();
+    const alreadyClaimed = player.lastLoginDate === today;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const streakBroken = player.lastLoginDate && player.lastLoginDate < yesterday;
+    const currentStreak = streakBroken ? 0 : (player.loginStreak ?? 0);
+    const nextStreakDay = currentStreak + 1;
+    const reward = getRewardForDay(nextStreakDay);
+
+    // Build a 7-day calendar preview
+    const calendar = Array.from({ length: 7 }, (_, i) => {
+      const day = (currentStreak % 7) + i + 1;
+      const r = DAILY_REWARDS[(day - 1) % 7];
+      return { day, reward: r, claimed: i < (currentStreak % 7), isToday: i === (currentStreak % 7) };
+    });
+
+    res.json({
+      alreadyClaimed,
+      currentStreak,
+      nextStreakDay,
+      reward,
+      calendar,
+      lastClaimedDate: player.lastLoginDate ?? null,
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get daily reward status" });
+  }
+});
+
+router.post("/player/daily-reward/claim", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer(req.userId);
+    const today = getTodayDate();
+
+    if (player.lastLoginDate === today) {
+      res.status(400).json({ error: "Already claimed today" });
+      return;
+    }
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const streakBroken = player.lastLoginDate && player.lastLoginDate < yesterday;
+    const newStreak = streakBroken ? 1 : (player.loginStreak ?? 0) + 1;
+    const reward = getRewardForDay(newStreak);
+
+    const updates: Record<string, any> = { lastLoginDate: today, loginStreak: newStreak };
+    if (reward.type === "gold") {
+      updates.gold = (player.gold ?? 0) + reward.amount;
+    }
+
+    await db.update(playerTable).set(updates).where(eq(playerTable.id, player.id));
+
+    if (reward.type === "xp") {
+      await applyXpEvent(player.id, reward.amount, "daily_login", "general", today);
+    }
+
+    await db.insert(dailyLoginsTable).values({
+      playerId: player.id,
+      claimedDate: today,
+      streakDay: newStreak,
+      rewardType: reward.type,
+      rewardAmount: reward.amount,
+      rewardLabel: reward.label,
+    });
+
+    res.json({
+      success: true,
+      streakDay: newStreak,
+      rewardType: reward.type,
+      rewardAmount: reward.amount,
+      rewardLabel: reward.label,
+      isMilestone: [7, 14, 30].includes(newStreak % 30 === 0 ? 30 : newStreak),
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to claim daily reward" });
   }
 });
 

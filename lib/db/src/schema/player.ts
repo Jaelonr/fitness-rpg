@@ -32,6 +32,9 @@ export const playerTable = pgTable("player", {
   baseClass: text("base_class"),
   setupCompleted: boolean("setup_completed").notNull().default(false),
   lastActivityDate: text("last_activity_date"),
+  loginStreak: integer("login_streak").notNull().default(0),
+  lastLoginDate: text("last_login_date"),
+  guildId: integer("guild_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

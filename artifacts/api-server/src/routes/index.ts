@@ -15,6 +15,8 @@ import bossRaidsRouter from "./boss-raids";
 import profileRouter from "./profile";
 import exercisesRouter from "./exercises";
 import armoryRouter from "./armory";
+import guildsRouter from "./guilds";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -45,5 +47,7 @@ router.use(bossRaidsRouter);
 router.use(profileRouter);
 router.use(exercisesRouter);
 router.use(armoryRouter);
+router.use(guildsRouter);
+router.use(pushRouter);
 
 export default router;

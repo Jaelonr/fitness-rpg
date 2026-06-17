@@ -90,6 +90,24 @@ Each task in `RAID_TEMPLATES` now has a `taskType` field:
 
 `rpg_gear` table (DB: `gear_slot` enum + rarity text + stat_bonuses JSONB). Gear drops on raid claim from `generateGearDrop(difficulty, source)`. Difficulty maps to rarity: E→common, D→uncommon, C→rare, B→epic, A→epic, S→legendary. Stat bonuses scale by rarity (1 pt common → 10 pts legendary). Armory tab added to inventory.tsx (tab order: Armory, Items, Store). Equip toggles per slot — equipping a new item automatically unequips the previous item in that slot.
 
+## Food Search (Tier 3)
+
+`GET /api/nutrition/food-search?q=` proxies Open Food Facts (no key needed). Backend fetches with `AbortSignal.timeout(6000)` and normalizes fields to `{ id, name, calories100g, protein100g, carbs100g, fat100g, servingSize }`. Frontend uses the raw `searchFood` fetcher (not the hook) with a `useEffect` + 500ms debounce timer to avoid react-query `UseQueryOptions` requiring `queryKey`.
+
+**Why:** `useSearchFood(params, { query: { enabled: ... } })` throws TS2741 because react-query v5 requires `queryKey` in `UseQueryOptions`. Use the raw `searchFood` fetcher + manual debounce instead.
+
+## Daily Login Reward System (Tier 3)
+
+`daily_logins` table tracks claim history. `login_streak` + `last_login_date` columns on `playerTable` (text date, e.g. "2026-06-17"). Streak resets if `lastLoginDate < yesterday`. Milestone bonuses at days 7/14/30 (rotate: `streakDay % 30`, `% 14`, `% 7`). `DailyRewardCard` component on dashboard shows 7-day calendar strip and claim button.
+
+## Guild System (Tier 4)
+
+`guilds` + `guild_members` (UNIQUE on `player_id` — one guild per player) + `guild_activity` tables. `player.guildId` FK links player to their guild. Invite code is 6-char alphanumeric, generated server-side. Leader leaving with no other members disbands the guild. Guild page at `/guilds`, accessible from bottom nav (9th item). Activity feed auto-appended on join/leave/creation.
+
+## Push Notifications (Tier 4)
+
+`push_subscriptions` table stores `endpoint` (UNIQUE), `p256dh`, `auth`. VAPID keys set as shared env vars `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`. Service worker at `artifacts/fitness-rpg/public/sw.js`. Registered in `main.tsx` via `navigator.serviceWorker.register('/sw.js')` on window load.
+
 ## Active session page
 
 Rebuilt to full set-by-set tracker: template exercises from `session.templateExercises`, per-set PR badge, 90s rest timer, elapsed timer, end-of-session `SessionSummary` overlay.

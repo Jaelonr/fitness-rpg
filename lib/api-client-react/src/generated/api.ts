@@ -25,7 +25,10 @@ import type {
   BossRaid,
   ChangeClass200,
   CopyMealsResult,
+  CreateGuildBody,
   DailyNutritionSummary,
+  DailyRewardClaimResult,
+  DailyRewardStatus,
   DashboardSummary,
   EquipGear200,
   Equipment,
@@ -33,14 +36,21 @@ import type {
   EquipmentUpdate,
   Exercise,
   ExerciseSearchResult,
+  FoodSearchResult,
   GeneratedPlan,
   GetExercisesParams,
   GetNutritionLogsParams,
   GetQuestsParams,
+  GetVapidPublicKey200,
   GetVolumeByMuscleGroupParams,
   GetWorkoutSessionsParams,
+  Guild,
+  GuildDetail,
   HealthStatus,
   InventoryItem,
+  JoinGuild200,
+  JoinGuildBody,
+  LeaveGuild200,
   ListExercisesParams,
   MuscleGroupVolume,
   NutritionLog,
@@ -70,12 +80,17 @@ import type {
   SavedMeal,
   SavedMealInput,
   SearchExercisesAiBody,
+  SearchFoodParams,
   SkillNode,
   SkillTree,
   StartBossRaidBody,
   StatAllocation,
   StoreItem,
+  SubscribePush200,
+  SubscribePushBody,
   Title,
+  UnsubscribePush200,
+  UnsubscribePushBody,
   UpdateBossRaidTaskBody,
   UseItemResult,
   WeeklyNutritionAverages,
@@ -5530,5 +5545,744 @@ export const useEquipGear = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getEquipGearMutationOptions(options));
+    }
+
+export const getSearchFoodUrl = (params: SearchFoodParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/nutrition/food-search?${stringifiedParams}` : `/api/nutrition/food-search`
+}
+
+/**
+ * @summary Search food database (Open Food Facts)
+ */
+export const searchFood = async (params: SearchFoodParams, options?: RequestInit): Promise<FoodSearchResult[]> => {
+
+  return customFetch<FoodSearchResult[]>(getSearchFoodUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchFoodQueryKey = (params?: SearchFoodParams,) => {
+    return [
+    `/api/nutrition/food-search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchFoodQueryOptions = <TData = Awaited<ReturnType<typeof searchFood>>, TError = ErrorType<unknown>>(params: SearchFoodParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchFoodQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchFood>>> = ({ signal }) => searchFood(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchFood>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchFoodQueryResult = NonNullable<Awaited<ReturnType<typeof searchFood>>>
+export type SearchFoodQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search food database (Open Food Facts)
+ */
+
+export function useSearchFood<TData = Awaited<ReturnType<typeof searchFood>>, TError = ErrorType<unknown>>(
+ params: SearchFoodParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchFoodQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetDailyRewardUrl = () => {
+
+
+
+
+  return `/api/player/daily-reward`
+}
+
+/**
+ * @summary Get daily login reward status
+ */
+export const getDailyReward = async ( options?: RequestInit): Promise<DailyRewardStatus> => {
+
+  return customFetch<DailyRewardStatus>(getGetDailyRewardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDailyRewardQueryKey = () => {
+    return [
+    `/api/player/daily-reward`
+    ] as const;
+    }
+
+
+export const getGetDailyRewardQueryOptions = <TData = Awaited<ReturnType<typeof getDailyReward>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDailyRewardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyReward>>> = ({ signal }) => getDailyReward({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDailyRewardQueryResult = NonNullable<Awaited<ReturnType<typeof getDailyReward>>>
+export type GetDailyRewardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get daily login reward status
+ */
+
+export function useGetDailyReward<TData = Awaited<ReturnType<typeof getDailyReward>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDailyRewardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getClaimDailyRewardUrl = () => {
+
+
+
+
+  return `/api/player/daily-reward/claim`
+}
+
+/**
+ * @summary Claim today's daily login reward
+ */
+export const claimDailyReward = async ( options?: RequestInit): Promise<DailyRewardClaimResult> => {
+
+  return customFetch<DailyRewardClaimResult>(getClaimDailyRewardUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getClaimDailyRewardMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext> => {
+
+const mutationKey = ['claimDailyReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimDailyReward>>, void> = () => {
+
+
+          return  claimDailyReward(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimDailyRewardMutationResult = NonNullable<Awaited<ReturnType<typeof claimDailyReward>>>
+
+    export type ClaimDailyRewardMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Claim today's daily login reward
+ */
+export const useClaimDailyReward = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimDailyReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimDailyReward>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClaimDailyRewardMutationOptions(options));
+    }
+
+export const getGetMyGuildUrl = () => {
+
+
+
+
+  return `/api/guilds/mine`
+}
+
+/**
+ * @summary Get the current player's guild
+ */
+export const getMyGuild = async ( options?: RequestInit): Promise<GuildDetail | null> => {
+
+  return customFetch<GuildDetail | null>(getGetMyGuildUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyGuildQueryKey = () => {
+    return [
+    `/api/guilds/mine`
+    ] as const;
+    }
+
+
+export const getGetMyGuildQueryOptions = <TData = Awaited<ReturnType<typeof getMyGuild>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyGuild>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyGuildQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyGuild>>> = ({ signal }) => getMyGuild({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyGuild>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyGuildQueryResult = NonNullable<Awaited<ReturnType<typeof getMyGuild>>>
+export type GetMyGuildQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current player's guild
+ */
+
+export function useGetMyGuild<TData = Awaited<ReturnType<typeof getMyGuild>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyGuild>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyGuildQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateGuildUrl = () => {
+
+
+
+
+  return `/api/guilds`
+}
+
+/**
+ * @summary Create a new guild
+ */
+export const createGuild = async (createGuildBody: CreateGuildBody, options?: RequestInit): Promise<Guild> => {
+
+  return customFetch<Guild>(getCreateGuildUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createGuildBody,)
+  }
+);}
+
+
+
+
+export const getCreateGuildMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGuild>>, TError,{data: BodyType<CreateGuildBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGuild>>, TError,{data: BodyType<CreateGuildBody>}, TContext> => {
+
+const mutationKey = ['createGuild'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGuild>>, {data: BodyType<CreateGuildBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGuild(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGuildMutationResult = NonNullable<Awaited<ReturnType<typeof createGuild>>>
+    export type CreateGuildMutationBody = BodyType<CreateGuildBody>
+    export type CreateGuildMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new guild
+ */
+export const useCreateGuild = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGuild>>, TError,{data: BodyType<CreateGuildBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGuild>>,
+        TError,
+        {data: BodyType<CreateGuildBody>},
+        TContext
+      > => {
+      return useMutation(getCreateGuildMutationOptions(options));
+    }
+
+export const getJoinGuildUrl = () => {
+
+
+
+
+  return `/api/guilds/join`
+}
+
+/**
+ * @summary Join a guild by invite code
+ */
+export const joinGuild = async (joinGuildBody: JoinGuildBody, options?: RequestInit): Promise<JoinGuild200> => {
+
+  return customFetch<JoinGuild200>(getJoinGuildUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      joinGuildBody,)
+  }
+);}
+
+
+
+
+export const getJoinGuildMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinGuild>>, TError,{data: BodyType<JoinGuildBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinGuild>>, TError,{data: BodyType<JoinGuildBody>}, TContext> => {
+
+const mutationKey = ['joinGuild'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinGuild>>, {data: BodyType<JoinGuildBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  joinGuild(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinGuildMutationResult = NonNullable<Awaited<ReturnType<typeof joinGuild>>>
+    export type JoinGuildMutationBody = BodyType<JoinGuildBody>
+    export type JoinGuildMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Join a guild by invite code
+ */
+export const useJoinGuild = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinGuild>>, TError,{data: BodyType<JoinGuildBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinGuild>>,
+        TError,
+        {data: BodyType<JoinGuildBody>},
+        TContext
+      > => {
+      return useMutation(getJoinGuildMutationOptions(options));
+    }
+
+export const getLeaveGuildUrl = () => {
+
+
+
+
+  return `/api/guilds/leave`
+}
+
+/**
+ * @summary Leave current guild
+ */
+export const leaveGuild = async ( options?: RequestInit): Promise<LeaveGuild200> => {
+
+  return customFetch<LeaveGuild200>(getLeaveGuildUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getLeaveGuildMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveGuild>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveGuild>>, TError,void, TContext> => {
+
+const mutationKey = ['leaveGuild'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveGuild>>, void> = () => {
+
+
+          return  leaveGuild(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveGuildMutationResult = NonNullable<Awaited<ReturnType<typeof leaveGuild>>>
+
+    export type LeaveGuildMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Leave current guild
+ */
+export const useLeaveGuild = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveGuild>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof leaveGuild>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLeaveGuildMutationOptions(options));
+    }
+
+export const getGetVapidPublicKeyUrl = () => {
+
+
+
+
+  return `/api/push/vapid-public-key`
+}
+
+/**
+ * @summary Get VAPID public key for push subscription
+ */
+export const getVapidPublicKey = async ( options?: RequestInit): Promise<GetVapidPublicKey200> => {
+
+  return customFetch<GetVapidPublicKey200>(getGetVapidPublicKeyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVapidPublicKeyQueryKey = () => {
+    return [
+    `/api/push/vapid-public-key`
+    ] as const;
+    }
+
+
+export const getGetVapidPublicKeyQueryOptions = <TData = Awaited<ReturnType<typeof getVapidPublicKey>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVapidPublicKey>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVapidPublicKeyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVapidPublicKey>>> = ({ signal }) => getVapidPublicKey({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVapidPublicKey>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVapidPublicKeyQueryResult = NonNullable<Awaited<ReturnType<typeof getVapidPublicKey>>>
+export type GetVapidPublicKeyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get VAPID public key for push subscription
+ */
+
+export function useGetVapidPublicKey<TData = Awaited<ReturnType<typeof getVapidPublicKey>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVapidPublicKey>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVapidPublicKeyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubscribePushUrl = () => {
+
+
+
+
+  return `/api/push/subscribe`
+}
+
+/**
+ * @summary Register a push notification subscription
+ */
+export const subscribePush = async (subscribePushBody: SubscribePushBody, options?: RequestInit): Promise<SubscribePush200> => {
+
+  return customFetch<SubscribePush200>(getSubscribePushUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      subscribePushBody,)
+  }
+);}
+
+
+
+
+export const getSubscribePushMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribePush>>, TError,{data: BodyType<SubscribePushBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof subscribePush>>, TError,{data: BodyType<SubscribePushBody>}, TContext> => {
+
+const mutationKey = ['subscribePush'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof subscribePush>>, {data: BodyType<SubscribePushBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  subscribePush(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubscribePushMutationResult = NonNullable<Awaited<ReturnType<typeof subscribePush>>>
+    export type SubscribePushMutationBody = BodyType<SubscribePushBody>
+    export type SubscribePushMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register a push notification subscription
+ */
+export const useSubscribePush = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribePush>>, TError,{data: BodyType<SubscribePushBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof subscribePush>>,
+        TError,
+        {data: BodyType<SubscribePushBody>},
+        TContext
+      > => {
+      return useMutation(getSubscribePushMutationOptions(options));
+    }
+
+export const getUnsubscribePushUrl = () => {
+
+
+
+
+  return `/api/push/subscribe`
+}
+
+/**
+ * @summary Remove push notification subscription
+ */
+export const unsubscribePush = async (unsubscribePushBody: UnsubscribePushBody, options?: RequestInit): Promise<UnsubscribePush200> => {
+
+  return customFetch<UnsubscribePush200>(getUnsubscribePushUrl(),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      unsubscribePushBody,)
+  }
+);}
+
+
+
+
+export const getUnsubscribePushMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unsubscribePush>>, TError,{data: BodyType<UnsubscribePushBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unsubscribePush>>, TError,{data: BodyType<UnsubscribePushBody>}, TContext> => {
+
+const mutationKey = ['unsubscribePush'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unsubscribePush>>, {data: BodyType<UnsubscribePushBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  unsubscribePush(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnsubscribePushMutationResult = NonNullable<Awaited<ReturnType<typeof unsubscribePush>>>
+    export type UnsubscribePushMutationBody = BodyType<UnsubscribePushBody>
+    export type UnsubscribePushMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove push notification subscription
+ */
+export const useUnsubscribePush = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unsubscribePush>>, TError,{data: BodyType<UnsubscribePushBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unsubscribePush>>,
+        TError,
+        {data: BodyType<UnsubscribePushBody>},
+        TContext
+      > => {
+      return useMutation(getUnsubscribePushMutationOptions(options));
     }
 

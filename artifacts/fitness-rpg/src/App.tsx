@@ -24,6 +24,7 @@ import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
 import Program from "@/pages/program";
 import World from "@/pages/world";
+import Guilds from "@/pages/guilds";
 import Onboarding from "@/pages/onboarding";
 import CharacterSetup from "@/pages/character-setup";
 import ClassPage from "@/pages/class";
@@ -137,6 +138,7 @@ function AppRoutes() {
         <Route path="/quests" component={Quests} />
         <Route path="/raids" component={Raids} />
         <Route path="/world" component={World} />
+        <Route path="/guilds" component={Guilds} />
         <Route path="/class" component={ClassPage} />
         <Route path="/inventory" component={Inventory} />
         <Route path="/analytics" component={Analytics} />

@@ -367,4 +367,34 @@ router.post("/nutrition/weight", async (req, res) => {
   }
 });
 
+// Food search proxy — Open Food Facts (no auth required)
+router.get("/nutrition/food-search", async (req, res) => {
+  try {
+    const q = String(req.query.q ?? "").trim();
+    if (!q) { res.json([]); return; }
+
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&json=true&page_size=20&action=process&fields=id,product_name,brands,nutriments,serving_size,product_quantity`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!resp.ok) { res.json([]); return; }
+    const data = await resp.json() as any;
+
+    const results = (data.products ?? [])
+      .filter((p: any) => p.product_name && p.nutriments?.["energy-kcal_100g"])
+      .map((p: any) => ({
+        id: p.id ?? p.code ?? "",
+        name: [p.product_name, p.brands].filter(Boolean).join(" · "),
+        calories100g: Math.round(p.nutriments["energy-kcal_100g"] ?? 0),
+        protein100g:  Math.round((p.nutriments["proteins_100g"] ?? 0) * 10) / 10,
+        carbs100g:    Math.round((p.nutriments["carbohydrates_100g"] ?? 0) * 10) / 10,
+        fat100g:      Math.round((p.nutriments["fat_100g"] ?? 0) * 10) / 10,
+        servingSize:  p.serving_size ?? null,
+      }))
+      .slice(0, 12);
+    res.json(results);
+  } catch (err) {
+    req.log.error(err, "food-search failed");
+    res.json([]);
+  }
+});
+
 export default router;

@@ -1361,6 +1361,234 @@ paths:
                   slot:
                     type: string
 
+  /nutrition/food-search:
+    get:
+      operationId: searchFood
+      tags: [nutrition]
+      summary: Search food database (Open Food Facts)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Food search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FoodSearchResult"
+
+  /player/daily-reward:
+    get:
+      operationId: getDailyReward
+      tags: [player]
+      summary: Get daily login reward status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Daily reward status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRewardStatus"
+
+  /player/daily-reward/claim:
+    post:
+      operationId: claimDailyReward
+      tags: [player]
+      summary: Claim today's daily login reward
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reward claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRewardClaimResult"
+
+  /guilds/mine:
+    get:
+      operationId: getMyGuild
+      tags: [guilds]
+      summary: Get the current player's guild
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Guild or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuildDetail"
+                nullable: true
+
+  /guilds:
+    post:
+      operationId: createGuild
+      tags: [guilds]
+      summary: Create a new guild
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                emblem:
+                  type: string
+      responses:
+        "201":
+          description: Guild created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guild"
+
+  /guilds/join:
+    post:
+      operationId: joinGuild
+      tags: [guilds]
+      summary: Join a guild by invite code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inviteCode]
+              properties:
+                inviteCode:
+                  type: string
+      responses:
+        "200":
+          description: Joined successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  guildId:
+                    type: integer
+                  guildName:
+                    type: string
+
+  /guilds/leave:
+    post:
+      operationId: leaveGuild
+      tags: [guilds]
+      summary: Leave current guild
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Left guild
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  guildDisbanded:
+                    type: boolean
+
+  /push/vapid-public-key:
+    get:
+      operationId: getVapidPublicKey
+      tags: [push]
+      summary: Get VAPID public key for push subscription
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+
+  /push/subscribe:
+    post:
+      operationId: subscribePush
+      tags: [push]
+      summary: Register a push notification subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint:
+                  type: string
+                keys:
+                  type: object
+                  properties:
+                    p256dh:
+                      type: string
+                    auth:
+                      type: string
+      responses:
+        "200":
+          description: Subscribed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+    delete:
+      operationId: unsubscribePush
+      tags: [push]
+      summary: Remove push notification subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+      responses:
+        "200":
+          description: Unsubscribed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
 components:
   schemas:
     HealthStatus:
@@ -2751,3 +2979,149 @@ components:
           type: boolean
         acquiredAt:
           type: string
+
+    FoodSearchResult:
+      type: object
+      required: [id, name, calories100g, protein100g, carbs100g, fat100g]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        calories100g:
+          type: number
+        protein100g:
+          type: number
+        carbs100g:
+          type: number
+        fat100g:
+          type: number
+        servingSize:
+          type: ["string", "null"]
+
+    DailyRewardEntry:
+      type: object
+      properties:
+        day:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: integer
+        label:
+          type: string
+
+    DailyRewardCalendarDay:
+      type: object
+      properties:
+        day:
+          type: integer
+        reward:
+          $ref: "#/components/schemas/DailyRewardEntry"
+        claimed:
+          type: boolean
+        isToday:
+          type: boolean
+
+    DailyRewardStatus:
+      type: object
+      required: [alreadyClaimed, currentStreak, nextStreakDay, reward, calendar]
+      properties:
+        alreadyClaimed:
+          type: boolean
+        currentStreak:
+          type: integer
+        nextStreakDay:
+          type: integer
+        reward:
+          $ref: "#/components/schemas/DailyRewardEntry"
+        calendar:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyRewardCalendarDay"
+        lastClaimedDate:
+          type: ["string", "null"]
+
+    DailyRewardClaimResult:
+      type: object
+      required: [success, streakDay, rewardType, rewardAmount, rewardLabel]
+      properties:
+        success:
+          type: boolean
+        streakDay:
+          type: integer
+        rewardType:
+          type: string
+        rewardAmount:
+          type: integer
+        rewardLabel:
+          type: string
+        isMilestone:
+          type: boolean
+
+    GuildMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        name:
+          type: string
+        level:
+          type: integer
+        rank:
+          type: string
+        baseClass:
+          type: ["string", "null"]
+        role:
+          type: string
+        joinedAt:
+          type: string
+
+    GuildActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        activityType:
+          type: string
+        description:
+          type: string
+        playerName:
+          type: string
+        createdAt:
+          type: string
+
+    Guild:
+      type: object
+      required: [id, name, emblem, inviteCode, maxMembers]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        emblem:
+          type: string
+        inviteCode:
+          type: string
+        maxMembers:
+          type: integer
+        createdAt:
+          type: string
+
+    GuildDetail:
+      allOf:
+        - $ref: "#/components/schemas/Guild"
+        - type: object
+          properties:
+            members:
+              type: array
+              items:
+                $ref: "#/components/schemas/GuildMember"
+            activity:
+              type: array
+              items:
+                $ref: "#/components/schemas/GuildActivityItem"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useGetTodayNutrition,
   useGetNutritionTargets,
@@ -6,6 +6,8 @@ import {
   useCreateNutritionLog,
   useDeleteNutritionLog,
   useUpdateNutritionTargets,
+  searchFood,
+  type FoodSearchResult,
 } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatBar } from "@/components/shared/stat-bar";
@@ -13,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, Apple, Plus, X, Loader2, ChevronDown, ChevronUp, Calculator, Sparkles, Link } from "lucide-react";
+import { Target, Apple, Plus, X, Loader2, ChevronDown, ChevronUp, Calculator, Sparkles, Link, Search } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -251,6 +253,38 @@ export default function Nutrition() {
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(defaultForm());
+  const [searchQ, setSearchQ] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [foodResults, setFoodResults] = useState<FoodSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [portionGrams, setPortionGrams] = useState("100");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (searchQ.length < 3) { setFoodResults([]); return; }
+    setIsSearching(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchFood({ q: searchQ });
+        setFoodResults(results);
+      } catch { setFoodResults([]); }
+      finally { setIsSearching(false); }
+    }, 500);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQ]);
+
+  const applyFoodResult = (item: FoodSearchResult, gramsStr: string) => {
+    const grams = parseFloat(gramsStr) || 100;
+    const ratio = grams / 100;
+    setField("mealName", item.name.split(" · ")[0]);
+    setField("calories", String(Math.round(item.calories100g * ratio)));
+    setField("protein",  String(Math.round(item.protein100g  * ratio * 10) / 10));
+    setField("carbs",    String(Math.round(item.carbs100g    * ratio * 10) / 10));
+    setField("fat",      String(Math.round(item.fat100g      * ratio * 10) / 10));
+    setShowSearch(false);
+    setSearchQ("");
+  };
 
   const setField = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -416,9 +450,63 @@ export default function Nutrition() {
               </div>
             </div>
 
-            {/* Meal Name */}
+            {/* Food Search */}
             <div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Meal Name</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Meal Name</div>
+                <button
+                  onClick={() => setShowSearch(!showSearch)}
+                  className="flex items-center gap-1 text-[9px] font-mono text-primary/70 hover:text-primary transition-colors"
+                >
+                  <Search className="w-2.5 h-2.5" />
+                  {showSearch ? "Hide search" : "Search database"}
+                </button>
+              </div>
+
+              {showSearch && (
+                <div className="mb-2 space-y-1.5">
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={searchQ}
+                      onChange={e => setSearchQ(e.target.value)}
+                      placeholder="Search foods... (e.g. chicken breast)"
+                      className="bg-black/40 border-border/50 h-8 text-xs flex-1"
+                      autoFocus
+                    />
+                    <Input
+                      value={portionGrams}
+                      onChange={e => setPortionGrams(e.target.value)}
+                      className="bg-black/40 border-border/50 h-8 text-xs w-16 font-mono"
+                      placeholder="100g"
+                    />
+                  </div>
+                  {isSearching && (
+                    <div className="flex items-center gap-1.5 py-1 text-[10px] text-muted-foreground font-mono">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Searching...
+                    </div>
+                  )}
+                  {!isSearching && foodResults.length > 0 && (
+                    <div className="max-h-44 overflow-y-auto space-y-1 border border-border/30 rounded-lg p-1 bg-black/30">
+                      {foodResults.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => applyFoodResult(item, portionGrams)}
+                          className="w-full text-left p-2 rounded hover:bg-primary/10 transition-colors"
+                        >
+                          <p className="text-xs font-medium leading-snug line-clamp-1">{item.name.split(" · ")[0]}</p>
+                          <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                            {Math.round(item.calories100g * (parseFloat(portionGrams) || 100) / 100)} kcal · P:{Math.round(item.protein100g * (parseFloat(portionGrams) || 100) / 100)}g · C:{Math.round(item.carbs100g * (parseFloat(portionGrams) || 100) / 100)}g · F:{Math.round(item.fat100g * (parseFloat(portionGrams) || 100) / 100)}g
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!isSearching && searchQ.length > 2 && foodResults.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground py-1">No results for "{searchQ}"</p>
+                  )}
+                </div>
+              )}
+
               <Input
                 value={form.mealName}
                 onChange={e => setField("mealName", e.target.value)}

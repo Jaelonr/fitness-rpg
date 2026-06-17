@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGetDashboardSummary, useAllocateStats, PlayerStats } from "@workspace/api-client-react";
+import { DailyRewardCard } from "@/components/daily-reward";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatBar } from "@/components/shared/stat-bar";
 import { RankBadge } from "@/components/shared/rank-badge";
@@ -183,6 +184,9 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Daily Login Reward */}
+      <DailyRewardCard />
 
       {/* World Status Card */}
       <button

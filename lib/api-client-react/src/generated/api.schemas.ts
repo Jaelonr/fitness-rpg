@@ -1241,6 +1241,86 @@ export interface RaidClaimResult {
   player: Player;
 }
 
+export interface FoodSearchResult {
+  id: string;
+  name: string;
+  calories100g: number;
+  protein100g: number;
+  carbs100g: number;
+  fat100g: number;
+  /** @nullable */
+  servingSize?: string | null;
+}
+
+export interface DailyRewardEntry {
+  day?: number;
+  type?: string;
+  amount?: number;
+  label?: string;
+}
+
+export interface DailyRewardCalendarDay {
+  day?: number;
+  reward?: DailyRewardEntry;
+  claimed?: boolean;
+  isToday?: boolean;
+}
+
+export interface DailyRewardStatus {
+  alreadyClaimed: boolean;
+  currentStreak: number;
+  nextStreakDay: number;
+  reward: DailyRewardEntry;
+  calendar: DailyRewardCalendarDay[];
+  /** @nullable */
+  lastClaimedDate?: string | null;
+}
+
+export interface DailyRewardClaimResult {
+  success: boolean;
+  streakDay: number;
+  rewardType: string;
+  rewardAmount: number;
+  rewardLabel: string;
+  isMilestone?: boolean;
+}
+
+export interface GuildMember {
+  id?: number;
+  playerId?: number;
+  name?: string;
+  level?: number;
+  rank?: string;
+  /** @nullable */
+  baseClass?: string | null;
+  role?: string;
+  joinedAt?: string;
+}
+
+export interface GuildActivityItem {
+  id?: number;
+  activityType?: string;
+  description?: string;
+  playerName?: string;
+  createdAt?: string;
+}
+
+export interface Guild {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  emblem: string;
+  inviteCode: string;
+  maxMembers: number;
+  createdAt?: string;
+}
+
+export type GuildDetail = Guild & {
+  members?: GuildMember[];
+  activity?: GuildActivityItem[];
+};
+
 export type ChangeClass200 = {
   success?: boolean;
   player?: Player;
@@ -1333,5 +1413,56 @@ export type EquipGear200 = {
   id: number;
   equipped: boolean;
   slot: string;
+};
+
+export type SearchFoodParams = {
+q: string;
+};
+
+export type CreateGuildBody = {
+  name: string;
+  description?: string;
+  emblem?: string;
+};
+
+export type JoinGuildBody = {
+  inviteCode: string;
+};
+
+export type JoinGuild200 = {
+  success?: boolean;
+  guildId?: number;
+  guildName?: string;
+};
+
+export type LeaveGuild200 = {
+  success?: boolean;
+  guildDisbanded?: boolean;
+};
+
+export type GetVapidPublicKey200 = {
+  key?: string;
+};
+
+export type SubscribePushBodyKeys = {
+  p256dh?: string;
+  auth?: string;
+};
+
+export type SubscribePushBody = {
+  endpoint: string;
+  keys: SubscribePushBodyKeys;
+};
+
+export type SubscribePush200 = {
+  success?: boolean;
+};
+
+export type UnsubscribePushBody = {
+  endpoint?: string;
+};
+
+export type UnsubscribePush200 = {
+  success?: boolean;
 };
 

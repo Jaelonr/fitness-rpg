@@ -1960,3 +1960,164 @@ export const EquipGearResponse = zod.object({
 })
 
 
+/**
+ * @summary Search food database (Open Food Facts)
+ */
+export const SearchFoodQueryParams = zod.object({
+  "q": zod.coerce.string()
+})
+
+export const SearchFoodResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "calories100g": zod.number(),
+  "protein100g": zod.number(),
+  "carbs100g": zod.number(),
+  "fat100g": zod.number(),
+  "servingSize": zod.string().nullish()
+})
+export const SearchFoodResponse = zod.array(SearchFoodResponseItem)
+
+
+/**
+ * @summary Get daily login reward status
+ */
+export const GetDailyRewardResponse = zod.object({
+  "alreadyClaimed": zod.boolean(),
+  "currentStreak": zod.number(),
+  "nextStreakDay": zod.number(),
+  "reward": zod.object({
+  "day": zod.number().optional(),
+  "type": zod.string().optional(),
+  "amount": zod.number().optional(),
+  "label": zod.string().optional()
+}),
+  "calendar": zod.array(zod.object({
+  "day": zod.number().optional(),
+  "reward": zod.object({
+  "day": zod.number().optional(),
+  "type": zod.string().optional(),
+  "amount": zod.number().optional(),
+  "label": zod.string().optional()
+}).optional(),
+  "claimed": zod.boolean().optional(),
+  "isToday": zod.boolean().optional()
+})),
+  "lastClaimedDate": zod.string().nullish()
+})
+
+
+/**
+ * @summary Claim today's daily login reward
+ */
+export const ClaimDailyRewardResponse = zod.object({
+  "success": zod.boolean(),
+  "streakDay": zod.number(),
+  "rewardType": zod.string(),
+  "rewardAmount": zod.number(),
+  "rewardLabel": zod.string(),
+  "isMilestone": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get the current player's guild
+ */
+export const GetMyGuildResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "emblem": zod.string(),
+  "inviteCode": zod.string(),
+  "maxMembers": zod.number(),
+  "createdAt": zod.string().optional()
+}).and(zod.object({
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "playerId": zod.number().optional(),
+  "name": zod.string().optional(),
+  "level": zod.number().optional(),
+  "rank": zod.string().optional(),
+  "baseClass": zod.string().nullish(),
+  "role": zod.string().optional(),
+  "joinedAt": zod.string().optional()
+})).optional(),
+  "activity": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "activityType": zod.string().optional(),
+  "description": zod.string().optional(),
+  "playerName": zod.string().optional(),
+  "createdAt": zod.string().optional()
+})).optional()
+})).nullable()
+
+
+/**
+ * @summary Create a new guild
+ */
+export const CreateGuildBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "emblem": zod.string().optional()
+})
+
+
+/**
+ * @summary Join a guild by invite code
+ */
+export const JoinGuildBody = zod.object({
+  "inviteCode": zod.string()
+})
+
+export const JoinGuildResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "guildId": zod.number().optional(),
+  "guildName": zod.string().optional()
+})
+
+
+/**
+ * @summary Leave current guild
+ */
+export const LeaveGuildResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "guildDisbanded": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get VAPID public key for push subscription
+ */
+export const GetVapidPublicKeyResponse = zod.object({
+  "key": zod.string().optional()
+})
+
+
+/**
+ * @summary Register a push notification subscription
+ */
+export const SubscribePushBody = zod.object({
+  "endpoint": zod.string(),
+  "keys": zod.object({
+  "p256dh": zod.string().optional(),
+  "auth": zod.string().optional()
+})
+})
+
+export const SubscribePushResponse = zod.object({
+  "success": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Remove push notification subscription
+ */
+export const UnsubscribePushBody = zod.object({
+  "endpoint": zod.string().optional()
+})
+
+export const UnsubscribePushResponse = zod.object({
+  "success": zod.boolean().optional()
+})
+
+

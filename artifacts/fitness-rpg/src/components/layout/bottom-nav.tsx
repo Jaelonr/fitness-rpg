@@ -8,6 +8,7 @@ import {
   Swords,
   BarChart3,
   User,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/training", icon: Dumbbell, label: "Training" },
   { href: "/quests", icon: Scroll, label: "Quests" },
   { href: "/raids", icon: Swords, label: "Raids" },
+  { href: "/guilds", icon: Users, label: "Guild" },
   { href: "/world", icon: Globe, label: "World" },
   { href: "/analytics", icon: BarChart3, label: "Records" },
   { href: "/profile", icon: User, label: "Profile" },
