@@ -990,6 +990,50 @@ paths:
                 items:
                   $ref: "#/components/schemas/RankProgressEntry"
 
+  # ─── EXERCISES ───────────────────────────────────────────────────────────────
+  /exercises:
+    get:
+      operationId: listExercises
+      tags: [training]
+      summary: List all exercises with optional search
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of exercises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Exercise"
+
+  /exercises/search-ai:
+    post:
+      operationId: searchExercisesAi
+      tags: [training]
+      summary: Search for exercises using AI and save new ones to the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+      responses:
+        "200":
+          description: Matching exercises (from DB or AI)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExerciseSearchResult"
+
   # ─── PROFILE / BIOMETRICS ───────────────────────────────────────────────────
   /profile/biometrics:
     get:
@@ -1566,6 +1610,42 @@ components:
           type: array
           items:
             type: integer
+        createdAt:
+          type: string
+
+    ExerciseSearchResult:
+      type: object
+      required: [source, exercises]
+      properties:
+        source:
+          type: string
+          enum: [database, ai, existing]
+        exercises:
+          type: array
+          items:
+            type: object
+            required: [id, name, muscleGroup, category]
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              muscleGroup:
+                type: string
+              category:
+                type: string
+              instructions:
+                type: ["string", "null"]
+              equipmentIds:
+                type: array
+                items:
+                  type: integer
+              source:
+                type: string
+              recommendedWeightKg:
+                type: ["number", "null"]
+              createdAt:
+                type: string
 
     WorkoutTemplate:
       type: object

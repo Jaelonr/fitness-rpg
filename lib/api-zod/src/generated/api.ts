@@ -512,7 +512,8 @@ export const GetExercisesResponseItem = zod.object({
   "muscleGroup": zod.string(),
   "category": zod.enum(['barbell', 'dumbbell', 'machine', 'bodyweight', 'cable', 'cardio', 'martial_arts']),
   "instructions": zod.string().nullish(),
-  "equipmentIds": zod.array(zod.number()).optional()
+  "equipmentIds": zod.array(zod.number()).optional(),
+  "createdAt": zod.string().optional()
 })
 export const GetExercisesResponse = zod.array(GetExercisesResponseItem)
 
@@ -1334,6 +1335,48 @@ export const GetRankProgressResponseItem = zod.object({
   "rank": zod.string()
 })
 export const GetRankProgressResponse = zod.array(GetRankProgressResponseItem)
+
+
+/**
+ * @summary List all exercises with optional search
+ */
+export const ListExercisesQueryParams = zod.object({
+  "q": zod.coerce.string().optional()
+})
+
+export const ListExercisesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "muscleGroup": zod.string(),
+  "category": zod.enum(['barbell', 'dumbbell', 'machine', 'bodyweight', 'cable', 'cardio', 'martial_arts']),
+  "instructions": zod.string().nullish(),
+  "equipmentIds": zod.array(zod.number()).optional(),
+  "createdAt": zod.string().optional()
+})
+export const ListExercisesResponse = zod.array(ListExercisesResponseItem)
+
+
+/**
+ * @summary Search for exercises using AI and save new ones to the database
+ */
+export const SearchExercisesAiBody = zod.object({
+  "query": zod.string()
+})
+
+export const SearchExercisesAiResponse = zod.object({
+  "source": zod.enum(['database', 'ai', 'existing']),
+  "exercises": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "muscleGroup": zod.string(),
+  "category": zod.string(),
+  "instructions": zod.string().nullish(),
+  "equipmentIds": zod.array(zod.number()).optional(),
+  "source": zod.string().optional(),
+  "recommendedWeightKg": zod.number().nullish(),
+  "createdAt": zod.string().optional()
+}))
+})
 
 
 /**

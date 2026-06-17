@@ -6,6 +6,7 @@ import {
   GeneratedPlan,
   PlanExercise,
 } from "@workspace/api-client-react";
+import { ExerciseSearch } from "@/components/exercise-search";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   Wind,
   User,
   Weight,
+  Search,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -388,6 +390,21 @@ export default function Planner() {
           </button>
         </div>
       )}
+
+      {/* AI Exercise Lookup */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-serif flex items-center gap-2">
+            <Search className="w-4 h-4 text-primary" />
+            Exercise Lookup
+            <span className="text-[9px] font-mono bg-primary/10 border border-primary/20 text-primary px-1.5 py-0.5 rounded ml-1">AI</span>
+          </CardTitle>
+          <p className="text-[11px] text-muted-foreground">Search any exercise — finds it in your library or retrieves it from the System</p>
+        </CardHeader>
+        <CardContent>
+          <ExerciseSearch />
+        </CardContent>
+      </Card>
     </div>
   );
 }

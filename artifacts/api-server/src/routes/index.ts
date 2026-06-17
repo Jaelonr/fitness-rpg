@@ -12,6 +12,7 @@ import dashboardRouter from "./dashboard";
 import plannerRouter from "./planner";
 import bossRaidsRouter from "./boss-raids";
 import profileRouter from "./profile";
+import exercisesRouter from "./exercises";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(dashboardRouter);
 router.use(plannerRouter);
 router.use(bossRaidsRouter);
 router.use(profileRouter);
+router.use(exercisesRouter);
 
 export default router;

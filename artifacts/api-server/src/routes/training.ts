@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import {
   exercisesTable, workoutTemplatesTable, workoutSessionsTable,
   workoutSetsTable, personalRecordsTable, playerTable, nutritionLogsTable,
-  nutritionTargetsTable
+  nutritionTargetsTable, playerBiometricsTable
 } from "@workspace/db";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { getOrCreatePlayer, buildPlayerResponse } from "../progression";
@@ -183,14 +183,62 @@ router.patch("/training/sessions/:id", async (req, res) => {
         const durationMinutes = Math.round(durationMs / 60000);
         updates.durationMinutes = durationMinutes;
 
-        // XP: base 150 + 2 per minute (capped at 60min bonus) + 20 per PR in session
+        // XP: base 150 + 2 per minute (capped at 60min bonus) + 20 per PR + volume bonus
         const sets = await db.select().from(workoutSetsTable).where(eq(workoutSetsTable.sessionId, id));
         const prCount = sets.filter(s => s.isPr).length;
         const baseXp = 150 + Math.min(durationMinutes, 60) * 2 + prCount * 20;
-        goldEarned = 25 + Math.floor(durationMinutes / 5) * 5 + prCount * 15;
 
-        updates.xpEarned = baseXp;
+        // Volume bonus: XP scales with how heavy you lifted relative to your 1RMs
+        let volumeBonus = 0;
+        let volumeBonusBreakdown = "";
+        const [bio] = await db.select().from(playerBiometricsTable).where(eq(playerBiometricsTable.playerId, player.id));
+        if (bio && sets.length > 0) {
+          // Calculate total volume in kg (convert lbs to kg if needed)
+          let totalVolumeKg = 0;
+          let heaviestRelativeIntensity = 0;
+
+          for (const s of sets) {
+            const weightKg = s.weightUnit === "lbs" ? s.weight * 0.453592 : s.weight;
+            totalVolumeKg += weightKg * s.reps;
+
+            // Find the relevant 1RM for this exercise by checking exercise name
+            const [ex] = await db.select().from(exercisesTable).where(eq(exercisesTable.id, s.exerciseId));
+            if (ex) {
+              const name = ex.name.toLowerCase();
+              const mg = ex.muscleGroup.toLowerCase();
+              let orm: number | null = null;
+              if (name.includes("deadlift")) orm = bio.deadlift1rm;
+              else if (mg.includes("leg") || mg.includes("quad") || name.includes("squat")) orm = bio.squat1rm;
+              else if (mg.includes("chest") || name.includes("bench")) orm = bio.bench1rm;
+              else if (mg.includes("shoulder") || name.includes("overhead") || name.includes("ohp")) orm = bio.ohp1rm;
+              else if (mg.includes("back") || name.includes("row")) orm = bio.row1rm;
+
+              if (orm && weightKg > 0) {
+                const intensity = weightKg / orm; // e.g. 0.8 = 80% of 1RM
+                heaviestRelativeIntensity = Math.max(heaviestRelativeIntensity, intensity);
+              }
+            }
+          }
+
+          // Volume XP: 1 XP per 100 kg of total volume, capped at 150
+          const volumeXp = Math.min(150, Math.floor(totalVolumeKg / 100));
+
+          // Intensity bonus: up to +100 XP for lifting at ≥90% 1RM
+          const intensityXp = heaviestRelativeIntensity >= 0.9 ? 100
+            : heaviestRelativeIntensity >= 0.8 ? 60
+            : heaviestRelativeIntensity >= 0.7 ? 30
+            : 0;
+
+          volumeBonus = volumeXp + intensityXp;
+          volumeBonusBreakdown = `Volume: +${volumeXp} XP (${Math.round(totalVolumeKg)}kg lifted)${intensityXp > 0 ? `, Intensity: +${intensityXp} XP (${Math.round(heaviestRelativeIntensity * 100)}% of 1RM)` : ""}`;
+        }
+
+        const totalXp = baseXp + volumeBonus;
+        goldEarned = 25 + Math.floor(durationMinutes / 5) * 5 + prCount * 15 + Math.floor(volumeBonus / 10);
+
+        updates.xpEarned = totalXp;
         updates.goldEarned = goldEarned;
+        updates.notes = volumeBonusBreakdown || updates.notes;
 
         const today = getTodayStr();
 
@@ -203,7 +251,7 @@ router.patch("/training/sessions/:id", async (req, res) => {
         }).where(eq(playerTable.id, player.id));
 
         // Apply XP through progression engine (handles level ups + achievements)
-        xpResult = await applyXpEvent(player.id, baseXp, "Workout Completed", "training", today);
+        xpResult = await applyXpEvent(player.id, totalXp, "Workout Completed", "training", today);
 
         // Check nutrition bonus — if today's calories are within 200 of target, grant bonus XP
         const nutritionLogs = await db.select().from(nutritionLogsTable)

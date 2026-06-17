@@ -369,6 +369,35 @@ export interface Exercise {
   /** @nullable */
   instructions?: string | null;
   equipmentIds?: number[];
+  createdAt?: string;
+}
+
+export type ExerciseSearchResultSource = typeof ExerciseSearchResultSource[keyof typeof ExerciseSearchResultSource];
+
+
+export const ExerciseSearchResultSource = {
+  database: 'database',
+  ai: 'ai',
+  existing: 'existing',
+} as const;
+
+export type ExerciseSearchResultExercisesItem = {
+  id: number;
+  name: string;
+  muscleGroup: string;
+  category: string;
+  /** @nullable */
+  instructions?: string | null;
+  equipmentIds?: number[];
+  source?: string;
+  /** @nullable */
+  recommendedWeightKg?: number | null;
+  createdAt?: string;
+};
+
+export interface ExerciseSearchResult {
+  source: ExerciseSearchResultSource;
+  exercises: ExerciseSearchResultExercisesItem[];
 }
 
 export type WorkoutTemplateCategory = typeof WorkoutTemplateCategory[keyof typeof WorkoutTemplateCategory];
@@ -1134,6 +1163,14 @@ export type GetVolumeByMuscleGroupParams = {
  * @nullable
  */
 weeks?: number | null;
+};
+
+export type ListExercisesParams = {
+q?: string;
+};
+
+export type SearchExercisesAiBody = {
+  query: string;
 };
 
 export type StartBossRaidBody = {

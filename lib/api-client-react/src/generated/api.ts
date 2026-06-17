@@ -30,6 +30,7 @@ import type {
   EquipmentInput,
   EquipmentUpdate,
   Exercise,
+  ExerciseSearchResult,
   GeneratedPlan,
   GetExercisesParams,
   GetNutritionLogsParams,
@@ -38,6 +39,7 @@ import type {
   GetWorkoutSessionsParams,
   HealthStatus,
   InventoryItem,
+  ListExercisesParams,
   MuscleGroupVolume,
   NutritionLog,
   NutritionLogInput,
@@ -60,6 +62,7 @@ import type {
   SavePlanRequest,
   SavedMeal,
   SavedMealInput,
+  SearchExercisesAiBody,
   SkillNode,
   SkillTree,
   StartBossRaidBody,
@@ -4203,6 +4206,161 @@ export function useGetRankProgress<TData = Awaited<ReturnType<typeof getRankProg
 
 
 
+
+export const getListExercisesUrl = (params?: ListExercisesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/exercises?${stringifiedParams}` : `/api/exercises`
+}
+
+/**
+ * @summary List all exercises with optional search
+ */
+export const listExercises = async (params?: ListExercisesParams, options?: RequestInit): Promise<Exercise[]> => {
+
+  return customFetch<Exercise[]>(getListExercisesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExercisesQueryKey = (params?: ListExercisesParams,) => {
+    return [
+    `/api/exercises`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListExercisesQueryOptions = <TData = Awaited<ReturnType<typeof listExercises>>, TError = ErrorType<unknown>>(params?: ListExercisesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExercises>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExercisesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExercises>>> = ({ signal }) => listExercises(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExercises>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListExercisesQueryResult = NonNullable<Awaited<ReturnType<typeof listExercises>>>
+export type ListExercisesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all exercises with optional search
+ */
+
+export function useListExercises<TData = Awaited<ReturnType<typeof listExercises>>, TError = ErrorType<unknown>>(
+ params?: ListExercisesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExercises>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListExercisesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSearchExercisesAiUrl = () => {
+
+
+
+
+  return `/api/exercises/search-ai`
+}
+
+/**
+ * @summary Search for exercises using AI and save new ones to the database
+ */
+export const searchExercisesAi = async (searchExercisesAiBody: SearchExercisesAiBody, options?: RequestInit): Promise<ExerciseSearchResult> => {
+
+  return customFetch<ExerciseSearchResult>(getSearchExercisesAiUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      searchExercisesAiBody,)
+  }
+);}
+
+
+
+
+export const getSearchExercisesAiMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchExercisesAi>>, TError,{data: BodyType<SearchExercisesAiBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchExercisesAi>>, TError,{data: BodyType<SearchExercisesAiBody>}, TContext> => {
+
+const mutationKey = ['searchExercisesAi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchExercisesAi>>, {data: BodyType<SearchExercisesAiBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  searchExercisesAi(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchExercisesAiMutationResult = NonNullable<Awaited<ReturnType<typeof searchExercisesAi>>>
+    export type SearchExercisesAiMutationBody = BodyType<SearchExercisesAiBody>
+    export type SearchExercisesAiMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Search for exercises using AI and save new ones to the database
+ */
+export const useSearchExercisesAi = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchExercisesAi>>, TError,{data: BodyType<SearchExercisesAiBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchExercisesAi>>,
+        TError,
+        {data: BodyType<SearchExercisesAiBody>},
+        TContext
+      > => {
+      return useMutation(getSearchExercisesAiMutationOptions(options));
+    }
 
 export const getGetBiometricsUrl = () => {
 
