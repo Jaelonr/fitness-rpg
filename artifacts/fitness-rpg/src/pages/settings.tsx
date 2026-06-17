@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth, useClerk } from "@clerk/react";
 import { useSettings } from "@/hooks/use-settings";
 import { useBiometric } from "@/hooks/use-biometric";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -12,7 +13,7 @@ import {
   Bell, Shield, Fingerprint, Smartphone, Palette,
   Scale, Download, Info, ChevronRight, Check,
   Loader2, AlertCircle, Activity, Eye, Database,
-  Moon, Zap, Clock, Swords,
+  Moon, Zap, Clock, Swords, LogIn, LogOut, User,
 } from "lucide-react";
 
 function SettingRow({
@@ -93,6 +94,8 @@ const REMINDER_TIMES = [
 ];
 
 export default function Settings() {
+  const { isSignedIn } = useAuth();
+  const { signOut, openSignIn } = useClerk();
   const { settings, setSetting } = useSettings();
   const { isSupported: biometricSupported, isRegistered, register, deregister } = useBiometric();
   const { isSupported: notifSupported, permission, requestPermission, sendNotification, scheduleReminder, cancelReminders } = useNotifications();
@@ -147,6 +150,30 @@ export default function Settings() {
   return (
     <div className="space-y-5 animate-in fade-in duration-500 pb-10">
       <PageHeader title="Settings" subtitle="Customize your hunter experience" />
+
+      {/* Account */}
+      <SectionHeader title="Account" icon={User} />
+      <Card className="border-border/50 bg-card/50">
+        <CardContent className="p-4">
+          {isSignedIn ? (
+            <button
+              onClick={() => signOut({ redirectUrl: "/" })}
+              className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-red-950/30 border border-red-800/40 text-red-400 hover:bg-red-950/50 hover:border-red-700/60 hover:text-red-300 transition-all text-sm font-semibold"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          ) : (
+            <button
+              onClick={() => openSignIn()}
+              className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-blue-950/30 border border-blue-700/40 text-blue-400 hover:bg-blue-950/50 hover:border-blue-600/60 hover:text-blue-300 transition-all text-sm font-semibold"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </button>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Install App */}
       {(canInstall || isInstalled) && (
