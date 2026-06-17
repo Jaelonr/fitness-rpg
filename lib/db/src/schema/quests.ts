@@ -1,0 +1,46 @@
+import { pgTable, serial, text, integer, boolean, timestamp, real, pgEnum } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { playerTable } from "./player";
+
+export const questTypeEnum = pgEnum("quest_type", [
+  "daily", "weekly", "main", "side", "penalty", "boss_raid", "gate_dungeon"
+]);
+
+export const questStatusEnum = pgEnum("quest_status", [
+  "active", "completed", "claimed", "failed", "locked"
+]);
+
+export const questDifficultyEnum = pgEnum("quest_difficulty", ["E", "D", "C", "B", "A", "S"]);
+
+export const questsTable = pgTable("quests", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id").notNull().references(() => playerTable.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: questTypeEnum("type").notNull(),
+  status: questStatusEnum("status").notNull().default("active"),
+  xpReward: integer("xp_reward").notNull().default(100),
+  goldReward: integer("gold_reward").notNull().default(50),
+  bonusStatPoints: integer("bonus_stat_points").notNull().default(0),
+  difficulty: questDifficultyEnum("difficulty").notNull().default("E"),
+  expiresAt: timestamp("expires_at"),
+  completedAt: timestamp("completed_at"),
+  claimedAt: timestamp("claimed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const questTasksTable = pgTable("quest_tasks", {
+  id: serial("id").primaryKey(),
+  questId: integer("quest_id").notNull().references(() => questsTable.id),
+  description: text("description").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  targetValue: real("target_value"),
+  currentValue: real("current_value"),
+  unit: text("unit"),
+  order: integer("order").notNull().default(0),
+});
+
+export type Quest = typeof questsTable.$inferSelect;
+export type QuestTask = typeof questTasksTable.$inferSelect;

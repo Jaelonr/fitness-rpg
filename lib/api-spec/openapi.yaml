@@ -1,22 +1,30 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Personal Fitness RPG API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: player
+  - name: nutrition
+  - name: training
+  - name: equipment
+  - name: skills
+  - name: quests
+  - name: inventory
+  - name: store
+  - name: analytics
+  - name: dashboard
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,964 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Full dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  # ─── PLAYER ──────────────────────────────────────────────────────────────────
+  /player:
+    get:
+      operationId: getPlayer
+      tags: [player]
+      summary: Get player profile
+      responses:
+        "200":
+          description: Player profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    patch:
+      operationId: updatePlayer
+      tags: [player]
+      summary: Update player profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerUpdate"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /player/allocate-stats:
+    post:
+      operationId: allocateStats
+      tags: [player]
+      summary: Allocate free stat points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatAllocation"
+      responses:
+        "200":
+          description: Updated player stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /player/titles:
+    get:
+      operationId: getPlayerTitles
+      tags: [player]
+      summary: Get earned titles
+      responses:
+        "200":
+          description: List of earned titles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Title"
+
+  /player/titles/{id}/equip:
+    post:
+      operationId: equipTitle
+      tags: [player]
+      summary: Equip a title
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /player/achievements:
+    get:
+      operationId: getAchievements
+      tags: [player]
+      summary: Get achievements
+      responses:
+        "200":
+          description: List of achievements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Achievement"
+
+  # ─── NUTRITION ────────────────────────────────────────────────────────────────
+  /nutrition/targets:
+    get:
+      operationId: getNutritionTargets
+      tags: [nutrition]
+      summary: Get nutrition targets
+      responses:
+        "200":
+          description: Nutrition targets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutritionTargets"
+    patch:
+      operationId: updateNutritionTargets
+      tags: [nutrition]
+      summary: Update nutrition targets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NutritionTargets"
+      responses:
+        "200":
+          description: Updated targets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutritionTargets"
+
+  /nutrition/today:
+    get:
+      operationId: getTodayNutrition
+      tags: [nutrition]
+      summary: Get today's nutrition summary
+      responses:
+        "200":
+          description: Today nutrition summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyNutritionSummary"
+
+  /nutrition/logs:
+    get:
+      operationId: getNutritionLogs
+      tags: [nutrition]
+      summary: Get nutrition logs
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Nutrition logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NutritionLog"
+    post:
+      operationId: createNutritionLog
+      tags: [nutrition]
+      summary: Log a meal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NutritionLogInput"
+      responses:
+        "201":
+          description: Created log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutritionLog"
+
+  /nutrition/logs/{id}:
+    patch:
+      operationId: updateNutritionLog
+      tags: [nutrition]
+      summary: Update a nutrition log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NutritionLogUpdate"
+      responses:
+        "200":
+          description: Updated log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutritionLog"
+    delete:
+      operationId: deleteNutritionLog
+      tags: [nutrition]
+      summary: Delete a nutrition log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /nutrition/meals/saved:
+    get:
+      operationId: getSavedMeals
+      tags: [nutrition]
+      summary: List saved meals
+      responses:
+        "200":
+          description: Saved meals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedMeal"
+    post:
+      operationId: createSavedMeal
+      tags: [nutrition]
+      summary: Save a meal template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedMealInput"
+      responses:
+        "201":
+          description: Saved meal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedMeal"
+
+  /nutrition/meals/saved/{id}:
+    delete:
+      operationId: deleteSavedMeal
+      tags: [nutrition]
+      summary: Delete a saved meal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /nutrition/copy-yesterday:
+    post:
+      operationId: copyYesterdayMeals
+      tags: [nutrition]
+      summary: Copy yesterday's meals to today
+      responses:
+        "200":
+          description: Copied meals count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CopyMealsResult"
+
+  /nutrition/weekly-averages:
+    get:
+      operationId: getNutritionWeeklyAverages
+      tags: [nutrition]
+      summary: Get weekly nutrition averages
+      responses:
+        "200":
+          description: Weekly averages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyNutritionAverages"
+
+  /nutrition/weight:
+    get:
+      operationId: getWeightEntries
+      tags: [nutrition]
+      summary: Get weight log entries
+      responses:
+        "200":
+          description: Weight entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeightEntry"
+    post:
+      operationId: createWeightEntry
+      tags: [nutrition]
+      summary: Log body weight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeightEntryInput"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightEntry"
+
+  # ─── TRAINING ─────────────────────────────────────────────────────────────────
+  /training/exercises:
+    get:
+      operationId: getExercises
+      tags: [training]
+      summary: List exercises
+      parameters:
+        - name: equipmentId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: muscleGroup
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Exercises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Exercise"
+
+  /training/templates:
+    get:
+      operationId: getWorkoutTemplates
+      tags: [training]
+      summary: List workout templates
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkoutTemplate"
+    post:
+      operationId: createWorkoutTemplate
+      tags: [training]
+      summary: Create workout template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutTemplateInput"
+      responses:
+        "201":
+          description: Created template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutTemplate"
+
+  /training/templates/{id}:
+    get:
+      operationId: getWorkoutTemplate
+      tags: [training]
+      summary: Get a workout template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutTemplate"
+    patch:
+      operationId: updateWorkoutTemplate
+      tags: [training]
+      summary: Update workout template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutTemplateUpdate"
+      responses:
+        "200":
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutTemplate"
+    delete:
+      operationId: deleteWorkoutTemplate
+      tags: [training]
+      summary: Delete workout template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /training/sessions:
+    get:
+      operationId: getWorkoutSessions
+      tags: [training]
+      summary: List workout sessions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkoutSession"
+    post:
+      operationId: createWorkoutSession
+      tags: [training]
+      summary: Start a workout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutSessionInput"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSession"
+
+  /training/sessions/{id}:
+    get:
+      operationId: getWorkoutSession
+      tags: [training]
+      summary: Get a workout session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSession"
+    patch:
+      operationId: updateWorkoutSession
+      tags: [training]
+      summary: Update/complete a workout session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutSessionUpdate"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSession"
+
+  /training/sessions/{id}/sets:
+    post:
+      operationId: logSet
+      tags: [training]
+      summary: Log a set in a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutSetInput"
+      responses:
+        "201":
+          description: Logged set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSet"
+
+  /training/sessions/{id}/sets/{setId}:
+    patch:
+      operationId: updateSet
+      tags: [training]
+      summary: Update a logged set
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: setId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutSetUpdate"
+      responses:
+        "200":
+          description: Updated set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSet"
+    delete:
+      operationId: deleteSet
+      tags: [training]
+      summary: Delete a logged set
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: setId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /training/prs:
+    get:
+      operationId: getPersonalRecords
+      tags: [training]
+      summary: Get PR history
+      responses:
+        "200":
+          description: PRs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PersonalRecord"
+
+  # ─── EQUIPMENT ────────────────────────────────────────────────────────────────
+  /equipment:
+    get:
+      operationId: getEquipment
+      tags: [equipment]
+      summary: List equipment
+      responses:
+        "200":
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Equipment"
+    post:
+      operationId: addEquipment
+      tags: [equipment]
+      summary: Add equipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentInput"
+      responses:
+        "201":
+          description: Added equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+
+  /equipment/{id}:
+    patch:
+      operationId: updateEquipment
+      tags: [equipment]
+      summary: Update equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipmentUpdate"
+      responses:
+        "200":
+          description: Updated equipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+    delete:
+      operationId: deleteEquipment
+      tags: [equipment]
+      summary: Remove equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── SKILLS ──────────────────────────────────────────────────────────────────
+  /skills/trees:
+    get:
+      operationId: getSkillTrees
+      tags: [skills]
+      summary: Get all skill trees with nodes
+      responses:
+        "200":
+          description: Skill trees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkillTree"
+
+  /skills/nodes/{id}/unlock:
+    post:
+      operationId: unlockSkillNode
+      tags: [skills]
+      summary: Unlock a skill node
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unlocked node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillNode"
+
+  # ─── QUESTS ──────────────────────────────────────────────────────────────────
+  /quests:
+    get:
+      operationId: getQuests
+      tags: [quests]
+      summary: List quests
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: status
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Quests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Quest"
+
+  /quests/daily:
+    get:
+      operationId: getDailyQuest
+      tags: [quests]
+      summary: Get today's daily quest
+      responses:
+        "200":
+          description: Daily quest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quest"
+
+  /quests/{id}:
+    get:
+      operationId: getQuest
+      tags: [quests]
+      summary: Get a quest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quest"
+
+  /quests/{id}/complete-task:
+    post:
+      operationId: completeQuestTask
+      tags: [quests]
+      summary: Mark a quest task as complete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestTaskCompletion"
+      responses:
+        "200":
+          description: Updated quest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quest"
+
+  /quests/{id}/claim:
+    post:
+      operationId: claimQuestReward
+      tags: [quests]
+      summary: Claim quest rewards
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Claim result with rewards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestClaimResult"
+
+  # ─── INVENTORY ────────────────────────────────────────────────────────────────
+  /inventory:
+    get:
+      operationId: getInventory
+      tags: [inventory]
+      summary: Get player inventory
+      responses:
+        "200":
+          description: Inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/{id}/use:
+    post:
+      operationId: useInventoryItem
+      tags: [inventory]
+      summary: Use an inventory item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Use result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UseItemResult"
+
+  # ─── STORE ────────────────────────────────────────────────────────────────────
+  /store/items:
+    get:
+      operationId: getStoreItems
+      tags: [store]
+      summary: List store items
+      responses:
+        "200":
+          description: Store items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoreItem"
+
+  /store/purchase:
+    post:
+      operationId: purchaseStoreItem
+      tags: [store]
+      summary: Purchase a store item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseInput"
+      responses:
+        "200":
+          description: Purchase result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseResult"
+
+  # ─── ANALYTICS ────────────────────────────────────────────────────────────────
+  /analytics/overview:
+    get:
+      operationId: getAnalyticsOverview
+      tags: [analytics]
+      summary: Analytics overview
+      responses:
+        "200":
+          description: Analytics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsOverview"
+
+  /analytics/volume:
+    get:
+      operationId: getVolumeByMuscleGroup
+      tags: [analytics]
+      summary: Training volume by muscle group
+      parameters:
+        - name: weeks
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Volume data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MuscleGroupVolume"
+
+  /analytics/xp:
+    get:
+      operationId: getXpByCategory
+      tags: [analytics]
+      summary: XP earned by category
+      responses:
+        "200":
+          description: XP data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/XpCategory"
+
+  /analytics/rank-progress:
+    get:
+      operationId: getRankProgress
+      tags: [analytics]
+      summary: Rank progress over time
+      responses:
+        "200":
+          description: Rank progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RankProgressEntry"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +997,945 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    # ─── DASHBOARD ─────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [player, dailyQuest, nutrition, workoutRecommendation]
+      properties:
+        player:
+          $ref: "#/components/schemas/Player"
+        dailyQuest:
+          $ref: "#/components/schemas/Quest"
+        nutrition:
+          $ref: "#/components/schemas/DailyNutritionSummary"
+        workoutRecommendation:
+          $ref: "#/components/schemas/WorkoutRecommendation"
+        streakDays:
+          type: integer
+        lastWorkoutDaysAgo:
+          type: ["integer", "null"]
+
+    WorkoutRecommendation:
+      type: object
+      required: [templateId, templateName, reason]
+      properties:
+        templateId:
+          type: integer
+        templateName:
+          type: string
+        reason:
+          type: string
+
+    # ─── PLAYER ────────────────────────────────────────────────────────────────
+    Player:
+      type: object
+      required: [id, name, level, rank, xp, xpToNextLevel, hp, maxHp, mp, maxMp, gold, freeStatPoints, stats, activeTitle, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        level:
+          type: integer
+        rank:
+          type: string
+          enum: [E, D, C, B, A, S, "National-Level"]
+        xp:
+          type: integer
+        xpToNextLevel:
+          type: integer
+        hp:
+          type: integer
+        maxHp:
+          type: integer
+        mp:
+          type: integer
+        maxMp:
+          type: integer
+        gold:
+          type: integer
+        freeStatPoints:
+          type: integer
+        streakDays:
+          type: integer
+        stats:
+          $ref: "#/components/schemas/PlayerStats"
+        activeTitle:
+          type: ["string", "null"]
+        penaltyQuestActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    PlayerStats:
+      type: object
+      required: [strength, agility, stamina, vitality, discipline, sense]
+      properties:
+        strength:
+          type: integer
+        agility:
+          type: integer
+        stamina:
+          type: integer
+        vitality:
+          type: integer
+        discipline:
+          type: integer
+        sense:
+          type: integer
+
+    PlayerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+
+    StatAllocation:
+      type: object
+      required: [allocations]
+      properties:
+        allocations:
+          $ref: "#/components/schemas/PlayerStats"
+
+    Title:
+      type: object
+      required: [id, name, description, rarity, equipped]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        rarity:
+          type: string
+          enum: [common, uncommon, rare, epic, legendary]
+        equipped:
+          type: boolean
+
+    Achievement:
+      type: object
+      required: [id, name, description, category, unlockedAt, xpReward]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        unlockedAt:
+          type: ["string", "null"]
+        xpReward:
+          type: integer
+        unlocked:
+          type: boolean
+
+    # ─── NUTRITION ─────────────────────────────────────────────────────────────
+    NutritionTargets:
+      type: object
+      required: [calories, protein, carbs, fat]
+      properties:
+        calories:
+          type: integer
+        protein:
+          type: integer
+        carbs:
+          type: integer
+        fat:
+          type: integer
+
+    DailyNutritionSummary:
+      type: object
+      required: [date, totalCalories, totalProtein, totalCarbs, totalFat, targetCalories, targetProtein, targetCarbs, targetFat, entries]
+      properties:
+        date:
+          type: string
+        totalCalories:
+          type: integer
+        totalProtein:
+          type: number
+        totalCarbs:
+          type: number
+        totalFat:
+          type: number
+        targetCalories:
+          type: integer
+        targetProtein:
+          type: integer
+        targetCarbs:
+          type: integer
+        targetFat:
+          type: integer
+        remainingCalories:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/NutritionLog"
+
+    NutritionLog:
+      type: object
+      required: [id, date, mealName, calories, protein, carbs, fat, mealType, createdAt]
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        mealName:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        mealType:
+          type: string
+          enum: [breakfast, lunch, dinner, snack, pre_workout, post_workout]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    NutritionLogInput:
+      type: object
+      required: [mealName, calories, protein, carbs, fat, mealType]
+      properties:
+        date:
+          type: ["string", "null"]
+        mealName:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        mealType:
+          type: string
+          enum: [breakfast, lunch, dinner, snack, pre_workout, post_workout]
+        notes:
+          type: ["string", "null"]
+
+    NutritionLogUpdate:
+      type: object
+      properties:
+        mealName:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        mealType:
+          type: string
+          enum: [breakfast, lunch, dinner, snack, pre_workout, post_workout]
+        notes:
+          type: ["string", "null"]
+
+    SavedMeal:
+      type: object
+      required: [id, name, calories, protein, carbs, fat]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        mealType:
+          type: ["string", "null"]
+
+    SavedMealInput:
+      type: object
+      required: [name, calories, protein, carbs, fat]
+      properties:
+        name:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+        mealType:
+          type: ["string", "null"]
+
+    CopyMealsResult:
+      type: object
+      required: [copied]
+      properties:
+        copied:
+          type: integer
+
+    WeeklyNutritionAverages:
+      type: object
+      required: [avgCalories, avgProtein, avgCarbs, avgFat, daysLogged]
+      properties:
+        avgCalories:
+          type: number
+        avgProtein:
+          type: number
+        avgCarbs:
+          type: number
+        avgFat:
+          type: number
+        daysLogged:
+          type: integer
+        dailyData:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyNutritionStat"
+
+    DailyNutritionStat:
+      type: object
+      required: [date, calories, protein, carbs, fat]
+      properties:
+        date:
+          type: string
+        calories:
+          type: integer
+        protein:
+          type: number
+        carbs:
+          type: number
+        fat:
+          type: number
+
+    WeightEntry:
+      type: object
+      required: [id, weight, date, unit]
+      properties:
+        id:
+          type: integer
+        weight:
+          type: number
+        date:
+          type: string
+        unit:
+          type: string
+          enum: [lbs, kg]
+        notes:
+          type: ["string", "null"]
+
+    WeightEntryInput:
+      type: object
+      required: [weight, date, unit]
+      properties:
+        weight:
+          type: number
+        date:
+          type: string
+        unit:
+          type: string
+          enum: [lbs, kg]
+        notes:
+          type: ["string", "null"]
+
+    # ─── TRAINING ──────────────────────────────────────────────────────────────
+    Exercise:
+      type: object
+      required: [id, name, muscleGroup, category]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        muscleGroup:
+          type: string
+        category:
+          type: string
+          enum: [barbell, dumbbell, machine, bodyweight, cable, cardio, martial_arts]
+        instructions:
+          type: ["string", "null"]
+        equipmentIds:
+          type: array
+          items:
+            type: integer
+
+    WorkoutTemplate:
+      type: object
+      required: [id, name, category, exercises, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+          enum: [strength, conditioning, striking, grappling, recovery, mixed]
+        description:
+          type: ["string", "null"]
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateExercise"
+        estimatedDuration:
+          type: ["integer", "null"]
+        xpReward:
+          type: integer
+        createdAt:
+          type: string
+
+    TemplateExercise:
+      type: object
+      required: [exerciseId, exerciseName, sets, reps, order]
+      properties:
+        exerciseId:
+          type: integer
+        exerciseName:
+          type: string
+        sets:
+          type: integer
+        reps:
+          type: string
+        restSeconds:
+          type: ["integer", "null"]
+        order:
+          type: integer
+        notes:
+          type: ["string", "null"]
+
+    WorkoutTemplateInput:
+      type: object
+      required: [name, category, exercises]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [strength, conditioning, striking, grappling, recovery, mixed]
+        description:
+          type: ["string", "null"]
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateExercise"
+        estimatedDuration:
+          type: ["integer", "null"]
+
+    WorkoutTemplateUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [strength, conditioning, striking, grappling, recovery, mixed]
+        description:
+          type: ["string", "null"]
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateExercise"
+        estimatedDuration:
+          type: ["integer", "null"]
+
+    WorkoutSession:
+      type: object
+      required: [id, name, status, sets, startedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        templateId:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        sets:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutSet"
+        xpEarned:
+          type: ["integer", "null"]
+        goldEarned:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+        durationMinutes:
+          type: ["integer", "null"]
+
+    WorkoutSessionInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        templateId:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+
+    WorkoutSessionUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        notes:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+
+    WorkoutSet:
+      type: object
+      required: [id, sessionId, exerciseId, exerciseName, setNumber, reps, weight, weightUnit, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        exerciseId:
+          type: integer
+        exerciseName:
+          type: string
+        setNumber:
+          type: integer
+        reps:
+          type: integer
+        weight:
+          type: number
+        weightUnit:
+          type: string
+          enum: [lbs, kg]
+        rpe:
+          type: ["number", "null"]
+        isPr:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    WorkoutSetInput:
+      type: object
+      required: [exerciseId, setNumber, reps, weight, weightUnit]
+      properties:
+        exerciseId:
+          type: integer
+        setNumber:
+          type: integer
+        reps:
+          type: integer
+        weight:
+          type: number
+        weightUnit:
+          type: string
+          enum: [lbs, kg]
+        rpe:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    WorkoutSetUpdate:
+      type: object
+      properties:
+        reps:
+          type: integer
+        weight:
+          type: number
+        weightUnit:
+          type: string
+          enum: [lbs, kg]
+        rpe:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    PersonalRecord:
+      type: object
+      required: [id, exerciseId, exerciseName, weight, reps, weightUnit, achievedAt]
+      properties:
+        id:
+          type: integer
+        exerciseId:
+          type: integer
+        exerciseName:
+          type: string
+        weight:
+          type: number
+        reps:
+          type: integer
+        weightUnit:
+          type: string
+          enum: [lbs, kg]
+        estimatedOneRepMax:
+          type: ["number", "null"]
+        achievedAt:
+          type: string
+
+    # ─── EQUIPMENT ─────────────────────────────────────────────────────────────
+    Equipment:
+      type: object
+      required: [id, name, category, owned, available]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+          enum: [barbell, rack, machine, free_weights, cardio, mat, striking, cable, bench, other]
+        description:
+          type: ["string", "null"]
+        owned:
+          type: boolean
+        available:
+          type: boolean
+        maxWeight:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    EquipmentInput:
+      type: object
+      required: [name, category]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [barbell, rack, machine, free_weights, cardio, mat, striking, cable, bench, other]
+        description:
+          type: ["string", "null"]
+        owned:
+          type: boolean
+        available:
+          type: boolean
+        maxWeight:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    EquipmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        owned:
+          type: boolean
+        available:
+          type: boolean
+        maxWeight:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    # ─── SKILLS ────────────────────────────────────────────────────────────────
+    SkillTree:
+      type: object
+      required: [id, name, description, category, nodes]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [strength, striking, grappling, conditioning, discipline, recovery, nutrition]
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillNode"
+
+    SkillNode:
+      type: object
+      required: [id, treeId, name, description, tier, unlocked, xpCost, statRequirements]
+      properties:
+        id:
+          type: integer
+        treeId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        tier:
+          type: integer
+        unlocked:
+          type: boolean
+        unlockedAt:
+          type: ["string", "null"]
+        xpCost:
+          type: integer
+        statRequirements:
+          $ref: "#/components/schemas/PlayerStats"
+        prerequisiteNodeIds:
+          type: array
+          items:
+            type: integer
+        effect:
+          type: ["string", "null"]
+        equipmentRequired:
+          type: ["string", "null"]
+
+    # ─── QUESTS ────────────────────────────────────────────────────────────────
+    Quest:
+      type: object
+      required: [id, title, description, type, status, tasks, xpReward, goldReward, expiresAt, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [daily, weekly, main, side, penalty, boss_raid, gate_dungeon]
+        status:
+          type: string
+          enum: [active, completed, claimed, failed, locked]
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestTask"
+        xpReward:
+          type: integer
+        goldReward:
+          type: integer
+        bonusStatPoints:
+          type: integer
+        difficulty:
+          type: string
+          enum: [E, D, C, B, A, S]
+        expiresAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        claimedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    QuestTask:
+      type: object
+      required: [id, questId, description, completed, order]
+      properties:
+        id:
+          type: integer
+        questId:
+          type: integer
+        description:
+          type: string
+        completed:
+          type: boolean
+        completedAt:
+          type: ["string", "null"]
+        targetValue:
+          type: ["number", "null"]
+        currentValue:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        order:
+          type: integer
+
+    QuestTaskCompletion:
+      type: object
+      required: [taskId]
+      properties:
+        taskId:
+          type: integer
+        value:
+          type: ["number", "null"]
+
+    QuestClaimResult:
+      type: object
+      required: [xpEarned, goldEarned, newLevel, leveledUp, player]
+      properties:
+        xpEarned:
+          type: integer
+        goldEarned:
+          type: integer
+        bonusStatPoints:
+          type: integer
+        newLevel:
+          type: integer
+        leveledUp:
+          type: boolean
+        newRank:
+          type: ["string", "null"]
+        rankedUp:
+          type: boolean
+        player:
+          $ref: "#/components/schemas/Player"
+
+    # ─── INVENTORY ─────────────────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      required: [id, itemId, itemName, itemType, quantity, rarity]
+      properties:
+        id:
+          type: integer
+        itemId:
+          type: integer
+        itemName:
+          type: string
+        itemType:
+          type: string
+          enum: [title, recovery_token, streak_shield, workout_theme, recipe_unlock, deload_pass, reward_box]
+        quantity:
+          type: integer
+        rarity:
+          type: string
+          enum: [common, uncommon, rare, epic, legendary]
+        description:
+          type: ["string", "null"]
+        equipped:
+          type: boolean
+
+    UseItemResult:
+      type: object
+      required: [success, message, player]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        player:
+          $ref: "#/components/schemas/Player"
+        bonusReward:
+          type: ["string", "null"]
+
+    # ─── STORE ─────────────────────────────────────────────────────────────────
+    StoreItem:
+      type: object
+      required: [id, name, description, type, goldCost, rarity, available]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [title, recovery_token, streak_shield, workout_theme, recipe_unlock, deload_pass, reward_box]
+        goldCost:
+          type: integer
+        rarity:
+          type: string
+          enum: [common, uncommon, rare, epic, legendary]
+        available:
+          type: boolean
+        rankRequired:
+          type: ["string", "null"]
+
+    PurchaseInput:
+      type: object
+      required: [itemId]
+      properties:
+        itemId:
+          type: integer
+        quantity:
+          type: integer
+
+    PurchaseResult:
+      type: object
+      required: [success, message, goldSpent, remainingGold, player]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        goldSpent:
+          type: integer
+        remainingGold:
+          type: integer
+        player:
+          $ref: "#/components/schemas/Player"
+
+    # ─── ANALYTICS ─────────────────────────────────────────────────────────────
+    AnalyticsOverview:
+      type: object
+      required: [totalWorkouts, totalXpEarned, currentStreak, longestStreak, totalPrs, avgCaloriesLast7Days, avgProteinLast7Days, weightTrend, recentPrs]
+      properties:
+        totalWorkouts:
+          type: integer
+        totalXpEarned:
+          type: integer
+        currentStreak:
+          type: integer
+        longestStreak:
+          type: integer
+        totalPrs:
+          type: integer
+        avgCaloriesLast7Days:
+          type: number
+        avgProteinLast7Days:
+          type: number
+        weightTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeightEntry"
+        recentPrs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonalRecord"
+
+    MuscleGroupVolume:
+      type: object
+      required: [muscleGroup, totalSets, totalReps, totalVolume]
+      properties:
+        muscleGroup:
+          type: string
+        totalSets:
+          type: integer
+        totalReps:
+          type: integer
+        totalVolume:
+          type: number
+
+    XpCategory:
+      type: object
+      required: [category, xpEarned, percentage]
+      properties:
+        category:
+          type: string
+        xpEarned:
+          type: integer
+        percentage:
+          type: number
+
+    RankProgressEntry:
+      type: object
+      required: [date, level, xp, rank]
+      properties:
+        date:
+          type: string
+        level:
+          type: integer
+        xp:
+          type: integer
+        rank:
+          type: string

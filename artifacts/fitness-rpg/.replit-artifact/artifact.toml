@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Personal Fitness RPG"
+version = "1.0.0"
+id = "artifacts/fitness-rpg"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21052
+
+[services.development]
+run = "pnpm --filter @workspace/fitness-rpg run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fitness-rpg", "run", "build" ]
+publicDir = "artifacts/fitness-rpg/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21052"
+BASE_PATH = "/"

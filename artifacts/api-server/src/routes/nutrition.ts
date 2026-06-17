@@ -1,0 +1,296 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import {
+  nutritionLogsTable, nutritionTargetsTable, savedMealsTable, weightEntriesTable
+} from "@workspace/db";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { getOrCreatePlayer } from "./player";
+
+const router = Router();
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+router.get("/nutrition/targets", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const targets = await db.select().from(nutritionTargetsTable)
+      .where(eq(nutritionTargetsTable.playerId, player.id)).limit(1);
+    if (targets.length === 0) {
+      const [created] = await db.insert(nutritionTargetsTable)
+        .values({ playerId: player.id, calories: 2500, protein: 180, carbs: 250, fat: 80 })
+        .returning();
+      return res.json(created);
+    }
+    res.json(targets[0]);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get targets" });
+  }
+});
+
+router.patch("/nutrition/targets", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const { calories, protein, carbs, fat } = req.body;
+    const existing = await db.select().from(nutritionTargetsTable)
+      .where(eq(nutritionTargetsTable.playerId, player.id)).limit(1);
+    if (existing.length === 0) {
+      const [created] = await db.insert(nutritionTargetsTable)
+        .values({ playerId: player.id, calories, protein, carbs, fat })
+        .returning();
+      return res.json(created);
+    }
+    const [updated] = await db.update(nutritionTargetsTable)
+      .set({ calories, protein, carbs, fat, updatedAt: new Date() })
+      .where(eq(nutritionTargetsTable.playerId, player.id))
+      .returning();
+    res.json(updated);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to update targets" });
+  }
+});
+
+router.get("/nutrition/today", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const today = getTodayStr();
+    const entries = await db.select().from(nutritionLogsTable)
+      .where(and(eq(nutritionLogsTable.playerId, player.id), eq(nutritionLogsTable.date, today)))
+      .orderBy(nutritionLogsTable.createdAt);
+
+    const targets = await db.select().from(nutritionTargetsTable)
+      .where(eq(nutritionTargetsTable.playerId, player.id)).limit(1);
+    const t = targets[0] || { calories: 2500, protein: 180, carbs: 250, fat: 80 };
+
+    const totals = entries.reduce((acc, e) => ({
+      calories: acc.calories + e.calories,
+      protein: acc.protein + e.protein,
+      carbs: acc.carbs + e.carbs,
+      fat: acc.fat + e.fat,
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    res.json({
+      date: today,
+      totalCalories: totals.calories,
+      totalProtein: totals.protein,
+      totalCarbs: totals.carbs,
+      totalFat: totals.fat,
+      targetCalories: t.calories,
+      targetProtein: t.protein,
+      targetCarbs: t.carbs,
+      targetFat: t.fat,
+      remainingCalories: t.calories - totals.calories,
+      entries: entries.map(e => ({ ...e, createdAt: e.createdAt.toISOString() })),
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get today nutrition" });
+  }
+});
+
+router.get("/nutrition/logs", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const date = (req.query.date as string) || getTodayStr();
+    const logs = await db.select().from(nutritionLogsTable)
+      .where(and(eq(nutritionLogsTable.playerId, player.id), eq(nutritionLogsTable.date, date)))
+      .orderBy(nutritionLogsTable.createdAt);
+    res.json(logs.map(e => ({ ...e, createdAt: e.createdAt.toISOString() })));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get logs" });
+  }
+});
+
+router.post("/nutrition/logs", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const { date, mealName, calories, protein, carbs, fat, mealType, notes } = req.body;
+    const [log] = await db.insert(nutritionLogsTable).values({
+      playerId: player.id,
+      date: date || getTodayStr(),
+      mealName, calories, protein, carbs, fat,
+      mealType: mealType || "snack",
+      notes,
+    }).returning();
+    res.status(201).json({ ...log, createdAt: log.createdAt.toISOString() });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to log meal" });
+  }
+});
+
+router.patch("/nutrition/logs/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { mealName, calories, protein, carbs, fat, mealType, notes } = req.body;
+    const [updated] = await db.update(nutritionLogsTable)
+      .set({ mealName, calories, protein, carbs, fat, mealType, notes })
+      .where(eq(nutritionLogsTable.id, id))
+      .returning();
+    res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to update log" });
+  }
+});
+
+router.delete("/nutrition/logs/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(nutritionLogsTable).where(eq(nutritionLogsTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to delete log" });
+  }
+});
+
+router.get("/nutrition/meals/saved", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const meals = await db.select().from(savedMealsTable)
+      .where(eq(savedMealsTable.playerId, player.id));
+    res.json(meals);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get saved meals" });
+  }
+});
+
+router.post("/nutrition/meals/saved", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const { name, calories, protein, carbs, fat, mealType } = req.body;
+    const [meal] = await db.insert(savedMealsTable)
+      .values({ playerId: player.id, name, calories, protein, carbs, fat, mealType })
+      .returning();
+    res.status(201).json(meal);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to save meal" });
+  }
+});
+
+router.delete("/nutrition/meals/saved/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(savedMealsTable).where(eq(savedMealsTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to delete saved meal" });
+  }
+});
+
+router.post("/nutrition/copy-yesterday", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const today = getTodayStr();
+
+    const yesterdayLogs = await db.select().from(nutritionLogsTable)
+      .where(and(eq(nutritionLogsTable.playerId, player.id), eq(nutritionLogsTable.date, yesterdayStr)));
+
+    if (yesterdayLogs.length === 0) {
+      return res.json({ copied: 0 });
+    }
+
+    const newLogs = yesterdayLogs.map(l => ({
+      playerId: player.id,
+      date: today,
+      mealName: l.mealName,
+      calories: l.calories,
+      protein: l.protein,
+      carbs: l.carbs,
+      fat: l.fat,
+      mealType: l.mealType,
+      notes: l.notes,
+    }));
+
+    await db.insert(nutritionLogsTable).values(newLogs);
+    res.json({ copied: newLogs.length });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to copy meals" });
+  }
+});
+
+router.get("/nutrition/weekly-averages", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().split("T")[0]);
+    }
+
+    const allLogs = await db.select().from(nutritionLogsTable)
+      .where(and(
+        eq(nutritionLogsTable.playerId, player.id),
+        gte(nutritionLogsTable.date, days[0]),
+        lte(nutritionLogsTable.date, days[days.length - 1])
+      ));
+
+    const dailyData = days.map(date => {
+      const dayLogs = allLogs.filter(l => l.date === date);
+      return {
+        date,
+        calories: dayLogs.reduce((s, l) => s + l.calories, 0),
+        protein: dayLogs.reduce((s, l) => s + l.protein, 0),
+        carbs: dayLogs.reduce((s, l) => s + l.carbs, 0),
+        fat: dayLogs.reduce((s, l) => s + l.fat, 0),
+      };
+    });
+
+    const daysLogged = dailyData.filter(d => d.calories > 0).length;
+    const divisor = daysLogged || 1;
+
+    res.json({
+      avgCalories: dailyData.reduce((s, d) => s + d.calories, 0) / divisor,
+      avgProtein: dailyData.reduce((s, d) => s + d.protein, 0) / divisor,
+      avgCarbs: dailyData.reduce((s, d) => s + d.carbs, 0) / divisor,
+      avgFat: dailyData.reduce((s, d) => s + d.fat, 0) / divisor,
+      daysLogged,
+      dailyData,
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get weekly averages" });
+  }
+});
+
+router.get("/nutrition/weight", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const entries = await db.select().from(weightEntriesTable)
+      .where(eq(weightEntriesTable.playerId, player.id))
+      .orderBy(desc(weightEntriesTable.date));
+    res.json(entries.map(e => ({ ...e, createdAt: e.createdAt?.toISOString?.() })));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get weight entries" });
+  }
+});
+
+router.post("/nutrition/weight", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer();
+    const { weight, date, unit, notes } = req.body;
+    const [entry] = await db.insert(weightEntriesTable)
+      .values({ playerId: player.id, weight, date, unit: unit || "lbs", notes })
+      .returning();
+    res.status(201).json({ ...entry, createdAt: entry.createdAt?.toISOString?.() });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to log weight" });
+  }
+});
+
+export default router;
