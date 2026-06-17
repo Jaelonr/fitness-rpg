@@ -116,6 +116,57 @@ paths:
               schema:
                 $ref: "#/components/schemas/Player"
 
+  /player/change-class:
+    post:
+      operationId: changeClass
+      tags: [player]
+      summary: Change base class for 5,000 gold
+      responses:
+        "200":
+          description: Updated player after class change
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  player:
+                    $ref: "#/components/schemas/Player"
+                  goldSpent:
+                    type: integer
+
+  /player/respec:
+    post:
+      operationId: respecPlayer
+      tags: [player]
+      summary: Reset stat allocation for gold or Respec Scroll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method:
+                  type: string
+                  enum: [gold, scroll]
+              required: [method]
+      responses:
+        "200":
+          description: Updated player after respec
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  player:
+                    $ref: "#/components/schemas/Player"
+                  pointsReturned:
+                    type: integer
+
   /player/titles:
     get:
       operationId: getPlayerTitles

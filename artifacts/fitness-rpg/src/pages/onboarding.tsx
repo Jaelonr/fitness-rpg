@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { markOnboardingComplete } from "@/hooks/use-story";
+import { markOnboardingComplete, hasCompletedSetup } from "@/hooks/use-story";
 import { cn } from "@/lib/utils";
 
 interface Slide {
@@ -93,12 +93,13 @@ export default function Onboarding() {
   const finish = () => {
     markOnboardingComplete();
     setExiting(true);
-    setTimeout(() => navigate("/setup"), 700);
+    const dest = hasCompletedSetup() ? "/" : "/setup";
+    setTimeout(() => navigate(dest), 700);
   };
 
   const skip = () => {
     markOnboardingComplete();
-    navigate("/setup");
+    navigate(hasCompletedSetup() ? "/" : "/setup");
   };
 
   const bgClass =

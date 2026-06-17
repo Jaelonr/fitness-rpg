@@ -260,6 +260,80 @@ export const AllocateStatsResponse = zod.object({
 
 
 /**
+ * @summary Change base class for 5,000 gold
+ */
+export const ChangeClassResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "player": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "level": zod.number(),
+  "rank": zod.enum(['E', 'D', 'C', 'B', 'A', 'S', 'National-Level']),
+  "xp": zod.number(),
+  "xpToNextLevel": zod.number(),
+  "hp": zod.number(),
+  "maxHp": zod.number(),
+  "mp": zod.number(),
+  "maxMp": zod.number(),
+  "gold": zod.number(),
+  "freeStatPoints": zod.number(),
+  "streakDays": zod.number().optional(),
+  "stats": zod.object({
+  "strength": zod.number(),
+  "agility": zod.number(),
+  "stamina": zod.number(),
+  "vitality": zod.number(),
+  "discipline": zod.number(),
+  "sense": zod.number()
+}),
+  "activeTitle": zod.string().nullable(),
+  "penaltyQuestActive": zod.boolean().optional(),
+  "createdAt": zod.string()
+}).optional(),
+  "goldSpent": zod.number().optional()
+})
+
+
+/**
+ * @summary Reset stat allocation for gold or Respec Scroll
+ */
+export const RespecPlayerBody = zod.object({
+  "method": zod.enum(['gold', 'scroll'])
+})
+
+export const RespecPlayerResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "player": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "level": zod.number(),
+  "rank": zod.enum(['E', 'D', 'C', 'B', 'A', 'S', 'National-Level']),
+  "xp": zod.number(),
+  "xpToNextLevel": zod.number(),
+  "hp": zod.number(),
+  "maxHp": zod.number(),
+  "mp": zod.number(),
+  "maxMp": zod.number(),
+  "gold": zod.number(),
+  "freeStatPoints": zod.number(),
+  "streakDays": zod.number().optional(),
+  "stats": zod.object({
+  "strength": zod.number(),
+  "agility": zod.number(),
+  "stamina": zod.number(),
+  "vitality": zod.number(),
+  "discipline": zod.number(),
+  "sense": zod.number()
+}),
+  "activeTitle": zod.string().nullable(),
+  "penaltyQuestActive": zod.boolean().optional(),
+  "createdAt": zod.string()
+}).optional(),
+  "pointsReturned": zod.number().optional()
+})
+
+
+/**
  * @summary Get earned titles
  */
 export const GetPlayerTitlesResponseItem = zod.object({

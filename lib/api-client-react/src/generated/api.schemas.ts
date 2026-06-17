@@ -1132,6 +1132,30 @@ export interface RaidClaimResult {
   player: Player;
 }
 
+export type ChangeClass200 = {
+  success?: boolean;
+  player?: Player;
+  goldSpent?: number;
+};
+
+export type RespecPlayerBodyMethod = typeof RespecPlayerBodyMethod[keyof typeof RespecPlayerBodyMethod];
+
+
+export const RespecPlayerBodyMethod = {
+  gold: 'gold',
+  scroll: 'scroll',
+} as const;
+
+export type RespecPlayerBody = {
+  method: RespecPlayerBodyMethod;
+};
+
+export type RespecPlayer200 = {
+  success?: boolean;
+  player?: Player;
+  pointsReturned?: number;
+};
+
 export type GetNutritionLogsParams = {
 date?: string;
 };

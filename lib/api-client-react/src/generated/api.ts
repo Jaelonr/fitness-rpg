@@ -23,6 +23,7 @@ import type {
   Achievement,
   AnalyticsOverview,
   BossRaid,
+  ChangeClass200,
   CopyMealsResult,
   DailyNutritionSummary,
   DashboardSummary,
@@ -60,6 +61,8 @@ import type {
   RaidClaimResult,
   RaidTemplate,
   RankProgressEntry,
+  RespecPlayer200,
+  RespecPlayerBody,
   SavePlanRequest,
   SavedMeal,
   SavedMealInput,
@@ -541,6 +544,147 @@ export const useAllocateStats = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAllocateStatsMutationOptions(options));
+    }
+
+export const getChangeClassUrl = () => {
+
+
+
+
+  return `/api/player/change-class`
+}
+
+/**
+ * @summary Change base class for 5,000 gold
+ */
+export const changeClass = async ( options?: RequestInit): Promise<ChangeClass200> => {
+
+  return customFetch<ChangeClass200>(getChangeClassUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getChangeClassMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClass>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeClass>>, TError,void, TContext> => {
+
+const mutationKey = ['changeClass'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeClass>>, void> = () => {
+
+
+          return  changeClass(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeClassMutationResult = NonNullable<Awaited<ReturnType<typeof changeClass>>>
+
+    export type ChangeClassMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Change base class for 5,000 gold
+ */
+export const useChangeClass = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeClass>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeClass>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getChangeClassMutationOptions(options));
+    }
+
+export const getRespecPlayerUrl = () => {
+
+
+
+
+  return `/api/player/respec`
+}
+
+/**
+ * @summary Reset stat allocation for gold or Respec Scroll
+ */
+export const respecPlayer = async (respecPlayerBody: RespecPlayerBody, options?: RequestInit): Promise<RespecPlayer200> => {
+
+  return customFetch<RespecPlayer200>(getRespecPlayerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      respecPlayerBody,)
+  }
+);}
+
+
+
+
+export const getRespecPlayerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respecPlayer>>, TError,{data: BodyType<RespecPlayerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof respecPlayer>>, TError,{data: BodyType<RespecPlayerBody>}, TContext> => {
+
+const mutationKey = ['respecPlayer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respecPlayer>>, {data: BodyType<RespecPlayerBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  respecPlayer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RespecPlayerMutationResult = NonNullable<Awaited<ReturnType<typeof respecPlayer>>>
+    export type RespecPlayerMutationBody = BodyType<RespecPlayerBody>
+    export type RespecPlayerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reset stat allocation for gold or Respec Scroll
+ */
+export const useRespecPlayer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respecPlayer>>, TError,{data: BodyType<RespecPlayerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof respecPlayer>>,
+        TError,
+        {data: BodyType<RespecPlayerBody>},
+        TContext
+      > => {
+      return useMutation(getRespecPlayerMutationOptions(options));
     }
 
 export const getGetPlayerTitlesUrl = () => {

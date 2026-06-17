@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   playerTable, playerStatsTable, titlesTable, playerTitlesTable,
-  achievementsTable, playerAchievementsTable, equipmentTable
+  achievementsTable, playerAchievementsTable, equipmentTable,
+  playerInventoryTable, storeItemsTable,
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
@@ -268,6 +269,90 @@ router.post("/player/prestige", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to prestige" });
+  }
+});
+
+router.post("/player/change-class", async (req, res) => {
+  try {
+    const COST = 5000;
+    const { player, stats } = await getOrCreatePlayer(req.userId);
+    if (player.gold < COST) {
+      return res.status(400).json({ error: `Not enough gold. Class change costs ${COST.toLocaleString()} gold.` });
+    }
+    const [updated] = await db.update(playerTable)
+      .set({ gold: player.gold - COST, updatedAt: new Date() })
+      .where(eq(playerTable.id, player.id))
+      .returning();
+    res.json({ success: true, player: buildPlayerResponse(updated, stats), goldSpent: COST });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to change class" });
+  }
+});
+
+router.post("/player/respec", async (req, res) => {
+  try {
+    const { method } = req.body as { method: "gold" | "scroll" };
+    const GOLD_COST = 2500;
+    const { player, stats } = await getOrCreatePlayer(req.userId);
+
+    if (method === "scroll") {
+      const scrolls = await db.select({ inv: playerInventoryTable, store: storeItemsTable })
+        .from(playerInventoryTable)
+        .innerJoin(storeItemsTable, eq(playerInventoryTable.itemId, storeItemsTable.id))
+        .where(and(
+          eq(playerInventoryTable.playerId, player.id),
+          eq(storeItemsTable.name, "Respec Scroll"),
+        ));
+      if (scrolls.length === 0) {
+        return res.status(400).json({ error: "No Respec Scroll in inventory" });
+      }
+      const scroll = scrolls[0];
+      if (scroll.inv.quantity <= 1) {
+        await db.delete(playerInventoryTable).where(eq(playerInventoryTable.id, scroll.inv.id));
+      } else {
+        await db.update(playerInventoryTable)
+          .set({ quantity: scroll.inv.quantity - 1 })
+          .where(eq(playerInventoryTable.id, scroll.inv.id));
+      }
+    } else {
+      if (player.gold < GOLD_COST) {
+        return res.status(400).json({ error: `Not enough gold. Respec costs ${GOLD_COST.toLocaleString()} gold.` });
+      }
+      await db.update(playerTable)
+        .set({ gold: player.gold - GOLD_COST, updatedAt: new Date() })
+        .where(eq(playerTable.id, player.id));
+    }
+
+    const BASE = 5;
+    const invested =
+      Math.max(0, stats.strength - BASE) +
+      Math.max(0, stats.agility - BASE) +
+      Math.max(0, stats.stamina - BASE) +
+      Math.max(0, stats.vitality - BASE) +
+      Math.max(0, stats.discipline - BASE) +
+      Math.max(0, stats.sense - BASE);
+
+    const [updatedStats] = await db.update(playerStatsTable)
+      .set({ strength: BASE, agility: BASE, stamina: BASE, vitality: BASE, discipline: BASE, sense: BASE, updatedAt: new Date() })
+      .where(eq(playerStatsTable.playerId, player.id))
+      .returning();
+
+    const newMaxHp = 100 + player.level * 5;
+    const [updatedPlayer] = await db.update(playerTable)
+      .set({
+        freeStatPoints: player.freeStatPoints + invested,
+        maxHp: newMaxHp,
+        hp: Math.min(player.hp, newMaxHp),
+        updatedAt: new Date(),
+      })
+      .where(eq(playerTable.id, player.id))
+      .returning();
+
+    res.json({ success: true, player: buildPlayerResponse(updatedPlayer, updatedStats), pointsReturned: invested });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to respec" });
   }
 });
 
