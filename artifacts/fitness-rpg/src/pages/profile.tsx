@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGetBiometrics, useUpdateBiometrics } from "@workspace/api-client-react";
+import { useSettings } from "@/hooks/use-settings";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,23 @@ const EQUIPMENT_TYPES = [
   { id: "heavy_bag", label: "Heavy Bag" },
 ];
 
+// ── Unit conversions ────────────────────────────────────────────────────────
+const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
+const lbsToKg = (lbs: number) => Math.round(lbs / 2.20462 * 100) / 100;
+const cmToIn  = (cm: number)  => Math.round(cm / 2.54 * 10) / 10;
+const inToCm  = (inches: number) => Math.round(inches * 2.54 * 10) / 10;
+
+/** Format decimal inches as a ft/in hint, e.g. 70.1 → 5'10" */
+function inToFtIn(inches: number): string {
+  const ft = Math.floor(inches / 12);
+  const rem = Math.round(inches % 12);
+  return `${ft}'${rem}"`;
+}
+
+// ── Form state (always stores display values in the user's preferred unit) ──
 interface FormState {
-  heightCm: string;
-  weightKg: string;
+  height: string;   // cm or inches depending on unit pref
+  weight: string;   // kg or lbs depending on unit pref
   bodyFatPct: string;
   squat1rm: string;
   bench1rm: string;
@@ -42,21 +57,28 @@ interface FormState {
 }
 
 const empty: FormState = {
-  heightCm: "", weightKg: "", bodyFatPct: "",
+  height: "", weight: "", bodyFatPct: "",
   squat1rm: "", bench1rm: "", deadlift1rm: "", ohp1rm: "", row1rm: "",
   equipmentTypes: [], notes: "",
 };
 
-function toForm(data: any): FormState {
+function toForm(data: any, isImperial: boolean): FormState {
+  const heightVal = data.heightCm != null
+    ? (isImperial ? String(cmToIn(data.heightCm)) : String(data.heightCm))
+    : "";
+  const weightVal = data.weightKg != null
+    ? (isImperial ? String(kgToLbs(data.weightKg)) : String(data.weightKg))
+    : "";
+  const conv1rm = (v: number | null) => v == null ? "" : isImperial ? String(kgToLbs(v)) : String(v);
   return {
-    heightCm: data.heightCm != null ? String(data.heightCm) : "",
-    weightKg: data.weightKg != null ? String(data.weightKg) : "",
+    height: heightVal,
+    weight: weightVal,
     bodyFatPct: data.bodyFatPct != null ? String(data.bodyFatPct) : "",
-    squat1rm: data.squat1rm != null ? String(data.squat1rm) : "",
-    bench1rm: data.bench1rm != null ? String(data.bench1rm) : "",
-    deadlift1rm: data.deadlift1rm != null ? String(data.deadlift1rm) : "",
-    ohp1rm: data.ohp1rm != null ? String(data.ohp1rm) : "",
-    row1rm: data.row1rm != null ? String(data.row1rm) : "",
+    squat1rm: conv1rm(data.squat1rm),
+    bench1rm: conv1rm(data.bench1rm),
+    deadlift1rm: conv1rm(data.deadlift1rm),
+    ohp1rm: conv1rm(data.ohp1rm),
+    row1rm: conv1rm(data.row1rm),
     equipmentTypes: data.equipmentTypes ?? [],
     notes: data.notes ?? "",
   };
@@ -70,16 +92,32 @@ function numOrNull(s: string): number | null {
 export default function Profile() {
   const { data, isLoading } = useGetBiometrics();
   const update = useUpdateBiometrics();
+  const { settings } = useSettings();
   const { toast } = useToast();
+
+  const isImperial = settings.units.weight === "lbs";
+  const weightLabel = isImperial ? "lbs" : "kg";
+  const heightLabel = isImperial ? "in" : "cm";
+
   const [form, setForm] = useState<FormState>(empty);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     if (data) {
-      setForm(toForm(data));
+      setForm(toForm(data, isImperial));
       setDirty(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+
+  // Re-convert displayed values when unit preference changes
+  useEffect(() => {
+    if (data) {
+      setForm(toForm(data, isImperial));
+      setDirty(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isImperial]);
 
   function set(field: keyof FormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -98,16 +136,25 @@ export default function Profile() {
   }
 
   function handleSave() {
+    const toKg = (s: string) => {
+      const n = numOrNull(s);
+      return n == null ? null : isImperial ? lbsToKg(n) : n;
+    };
+    const toCm = (s: string) => {
+      const n = numOrNull(s);
+      return n == null ? null : isImperial ? inToCm(n) : n;
+    };
+
     update.mutate({
       data: {
-        heightCm: numOrNull(form.heightCm),
-        weightKg: numOrNull(form.weightKg),
+        heightCm: toCm(form.height),
+        weightKg: toKg(form.weight),
         bodyFatPct: numOrNull(form.bodyFatPct),
-        squat1rm: form.squat1rm ? parseInt(form.squat1rm) : null,
-        bench1rm: form.bench1rm ? parseInt(form.bench1rm) : null,
-        deadlift1rm: form.deadlift1rm ? parseInt(form.deadlift1rm) : null,
-        ohp1rm: form.ohp1rm ? parseInt(form.ohp1rm) : null,
-        row1rm: form.row1rm ? parseInt(form.row1rm) : null,
+        squat1rm: toKg(form.squat1rm) != null ? Math.round(toKg(form.squat1rm)!) : null,
+        bench1rm: toKg(form.bench1rm) != null ? Math.round(toKg(form.bench1rm)!) : null,
+        deadlift1rm: toKg(form.deadlift1rm) != null ? Math.round(toKg(form.deadlift1rm)!) : null,
+        ohp1rm: toKg(form.ohp1rm) != null ? Math.round(toKg(form.ohp1rm)!) : null,
+        row1rm: toKg(form.row1rm) != null ? Math.round(toKg(form.row1rm)!) : null,
         equipmentTypes: form.equipmentTypes,
         notes: form.notes || null,
       },
@@ -124,6 +171,28 @@ export default function Profile() {
 
   const hasAny1rm = form.squat1rm || form.bench1rm || form.deadlift1rm || form.ohp1rm || form.row1rm;
 
+  // Height hint: show ft/in alongside inches
+  const heightNum = parseFloat(form.height);
+  const heightHint = isImperial && !isNaN(heightNum) && heightNum > 0
+    ? inToFtIn(heightNum)
+    : null;
+
+  const lifts: { field: keyof FormState; label: string; placeholder: string }[] = isImperial
+    ? [
+        { field: "squat1rm",    label: "Squat",          placeholder: "e.g. 315" },
+        { field: "bench1rm",    label: "Bench Press",     placeholder: "e.g. 225" },
+        { field: "deadlift1rm", label: "Deadlift",        placeholder: "e.g. 405" },
+        { field: "ohp1rm",      label: "Overhead Press",  placeholder: "e.g. 155" },
+        { field: "row1rm",      label: "Barbell Row",     placeholder: "e.g. 245" },
+      ]
+    : [
+        { field: "squat1rm",    label: "Squat",          placeholder: "e.g. 140" },
+        { field: "bench1rm",    label: "Bench Press",     placeholder: "e.g. 100" },
+        { field: "deadlift1rm", label: "Deadlift",        placeholder: "e.g. 180" },
+        { field: "ohp1rm",      label: "Overhead Press",  placeholder: "e.g. 70"  },
+        { field: "row1rm",      label: "Barbell Row",     placeholder: "e.g. 110" },
+      ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       <PageHeader
@@ -137,6 +206,21 @@ export default function Profile() {
           </Link>
         }
       />
+
+      {/* Unit system indicator */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+          Unit System
+        </p>
+        <div className="flex items-center gap-1 text-[10px] font-mono">
+          <span className={cn(isImperial ? "text-primary font-bold" : "text-muted-foreground")}>Imperial (lbs / in)</span>
+          <span className="text-white/20 mx-1">·</span>
+          <span className={cn(!isImperial ? "text-primary font-bold" : "text-muted-foreground")}>Metric (kg / cm)</span>
+          <Link href="/settings">
+            <span className="ml-2 text-[9px] text-primary/70 underline cursor-pointer">change</span>
+          </Link>
+        </div>
+      </div>
 
       {/* Info Banner */}
       <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
@@ -155,30 +239,38 @@ export default function Profile() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
+            {/* Height */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <Ruler className="w-3 h-3" /> Height (cm)
+                <Ruler className="w-3 h-3" /> Height ({heightLabel})
               </Label>
               <Input
                 type="number"
-                placeholder="e.g. 178"
-                value={form.heightCm}
-                onChange={e => set("heightCm", e.target.value)}
+                placeholder={isImperial ? "e.g. 70" : "e.g. 178"}
+                value={form.height}
+                onChange={e => set("height", e.target.value)}
                 className="bg-black/30 border-border/50 text-sm h-9"
               />
+              {heightHint && (
+                <p className="text-[10px] font-mono text-primary/70">{heightHint}</p>
+              )}
             </div>
+
+            {/* Weight */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <Scale className="w-3 h-3" /> Weight (kg)
+                <Scale className="w-3 h-3" /> Weight ({weightLabel})
               </Label>
               <Input
                 type="number"
-                placeholder="e.g. 82"
-                value={form.weightKg}
-                onChange={e => set("weightKg", e.target.value)}
+                placeholder={isImperial ? "e.g. 185" : "e.g. 82"}
+                value={form.weight}
+                onChange={e => set("weight", e.target.value)}
                 className="bg-black/30 border-border/50 text-sm h-9"
               />
             </div>
+
+            {/* Body Fat */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1">
                 <Activity className="w-3 h-3" /> Body Fat %
@@ -199,7 +291,7 @@ export default function Profile() {
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-serif flex items-center gap-2">
-            <Dumbbell className="w-4 h-4 text-primary" /> Strength Maxes (1RM in kg)
+            <Dumbbell className="w-4 h-4 text-primary" /> Strength Maxes (1RM in {weightLabel})
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -215,27 +307,23 @@ export default function Profile() {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { field: "squat1rm" as const, label: "Squat", placeholder: "e.g. 140" },
-              { field: "bench1rm" as const, label: "Bench Press", placeholder: "e.g. 100" },
-              { field: "deadlift1rm" as const, label: "Deadlift", placeholder: "e.g. 180" },
-              { field: "ohp1rm" as const, label: "Overhead Press", placeholder: "e.g. 70" },
-              { field: "row1rm" as const, label: "Barbell Row", placeholder: "e.g. 110" },
-            ].map(({ field, label, placeholder }) => (
+            {lifts.map(({ field, label, placeholder }) => (
               <div key={field} className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{label}</Label>
                 <div className="relative">
                   <Input
                     type="number"
                     placeholder={placeholder}
-                    value={form[field]}
+                    value={form[field] as string}
                     onChange={e => set(field, e.target.value)}
                     className={cn(
                       "bg-black/30 border-border/50 text-sm h-9 pr-8",
                       form[field] && "border-primary/40 bg-primary/5"
                     )}
                   />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    {weightLabel}
+                  </span>
                 </div>
               </div>
             ))}
