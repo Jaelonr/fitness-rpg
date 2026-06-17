@@ -9,3 +9,4 @@ export * from "./rpg-gear";
 export * from "./guilds";
 export * from "./daily-logins";
 export * from "./push-subscriptions";
+export * from "./combat";

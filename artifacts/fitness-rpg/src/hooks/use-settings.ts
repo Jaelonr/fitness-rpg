@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+
+export type NarrativeIntensity = "minimal" | "balanced" | "dramatic";
 
 export interface AppSettings {
   notifications: {
@@ -29,6 +31,9 @@ export interface AppSettings {
   privacy: {
     analyticsEnabled: boolean;
     crashReports: boolean;
+  };
+  narrative: {
+    intensity: NarrativeIntensity;
   };
 }
 
@@ -62,6 +67,9 @@ const DEFAULT_SETTINGS: AppSettings = {
     analyticsEnabled: true,
     crashReports: true,
   },
+  narrative: {
+    intensity: "balanced",
+  },
 };
 
 const STORAGE_KEY = "fitness-rpg-settings";
@@ -78,6 +86,7 @@ function loadSettings(): AppSettings {
       appearance: { ...DEFAULT_SETTINGS.appearance, ...parsed.appearance },
       sounds: { ...DEFAULT_SETTINGS.sounds, ...parsed.sounds },
       privacy: { ...DEFAULT_SETTINGS.privacy, ...parsed.privacy },
+      narrative: { ...DEFAULT_SETTINGS.narrative, ...parsed.narrative },
     };
   } catch {
     return DEFAULT_SETTINGS;

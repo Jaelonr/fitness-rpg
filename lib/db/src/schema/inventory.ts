@@ -34,6 +34,9 @@ export const storeItemsTable = pgTable("store_items", {
   rankRequired: text("rank_required"),
   levelRequired: integer("level_required"),
   effectValue: integer("effect_value"),
+  section: text("section").notNull().default("permanent"),
+  category: text("category").notNull().default("consumable"),
+  styleAffinity: text("style_affinity"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

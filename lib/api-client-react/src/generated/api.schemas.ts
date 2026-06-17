@@ -605,12 +605,22 @@ export const WorkoutSessionUpdateStatus = {
   abandoned: 'abandoned',
 } as const;
 
+export type WorkoutSessionUpdateNarrativeIntensity = typeof WorkoutSessionUpdateNarrativeIntensity[keyof typeof WorkoutSessionUpdateNarrativeIntensity];
+
+
+export const WorkoutSessionUpdateNarrativeIntensity = {
+  minimal: 'minimal',
+  balanced: 'balanced',
+  dramatic: 'dramatic',
+} as const;
+
 export interface WorkoutSessionUpdate {
   status?: WorkoutSessionUpdateStatus;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   completedAt?: string | null;
+  narrativeIntensity?: WorkoutSessionUpdateNarrativeIntensity;
 }
 
 export type WorkoutSetInputWeightUnit = typeof WorkoutSetInputWeightUnit[keyof typeof WorkoutSetInputWeightUnit];
@@ -1321,6 +1331,89 @@ export type GuildDetail = Guild & {
   activity?: GuildActivityItem[];
 };
 
+export interface CombatEvent {
+  text?: string;
+  type?: string;
+}
+
+export type CombatReplayEntryStyleScores = {[key: string]: number};
+
+export interface CombatReplayEntry {
+  id: number;
+  playerId?: number;
+  /** @nullable */
+  sessionId?: number | null;
+  encounterName: string;
+  enemyName: string;
+  dominantStyle: string;
+  /** @nullable */
+  secondaryStyle?: string | null;
+  /** @nullable */
+  hybridArchetype?: string | null;
+  verdict: string;
+  events?: CombatEvent[];
+  styleScores?: CombatReplayEntryStyleScores;
+  xpEarned: number;
+  goldEarned: number;
+  prCount: number;
+  /** @nullable */
+  raidImpact?: string | null;
+  narrativeIntensity: string;
+  createdAt: string;
+}
+
+export interface StyleIdentityPercentages {
+  strength?: number;
+  striking?: number;
+  conditioning?: number;
+  grappling?: number;
+  recovery?: number;
+  discipline?: number;
+}
+
+export interface StyleIdentity {
+  strength: number;
+  striking: number;
+  conditioning: number;
+  grappling: number;
+  recovery: number;
+  discipline: number;
+  totalSessions: number;
+  /** @nullable */
+  hybridArchetype?: string | null;
+  percentages: StyleIdentityPercentages;
+  /** @nullable */
+  dominantStyle?: string | null;
+}
+
+export interface StoreSectionItem {
+  id: number;
+  name: string;
+  description: string;
+  type: string;
+  goldCost: number;
+  rarity: string;
+  available: boolean;
+  /** @nullable */
+  rankRequired?: string | null;
+  /** @nullable */
+  levelRequired?: number | null;
+  /** @nullable */
+  effectValue?: number | null;
+  section?: string;
+  category?: string;
+  /** @nullable */
+  styleAffinity?: string | null;
+  meetsRequirements?: boolean;
+}
+
+export interface StoreSections {
+  permanent?: StoreSectionItem[];
+  daily?: StoreSectionItem[];
+  weekly?: StoreSectionItem[];
+  raid?: StoreSectionItem[];
+}
+
 export type ChangeClass200 = {
   success?: boolean;
   player?: Player;
@@ -1464,5 +1557,9 @@ export type UnsubscribePushBody = {
 
 export type UnsubscribePush200 = {
   success?: boolean;
+};
+
+export type GetBattleLogParams = {
+limit?: number;
 };
 

@@ -17,6 +17,7 @@ import exercisesRouter from "./exercises";
 import armoryRouter from "./armory";
 import guildsRouter from "./guilds";
 import pushRouter from "./push";
+import battleLogRouter from "./battle-log";
 
 const router: IRouter = Router();
 
@@ -49,5 +50,6 @@ router.use(exercisesRouter);
 router.use(armoryRouter);
 router.use(guildsRouter);
 router.use(pushRouter);
+router.use(battleLogRouter);
 
 export default router;

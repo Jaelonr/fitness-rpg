@@ -475,6 +475,52 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Narrative Engine */}
+      <SectionHeader title="Narrative Engine" icon={Swords} />
+      <Card className="border-border/50 bg-card/50">
+        <CardContent className="p-4 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground mb-0.5">Battle Narrative Intensity</p>
+            <p className="text-xs text-muted-foreground mb-4">Controls how your workout results are told as a combat story when finishing a session.</p>
+            <div className="space-y-2.5">
+              {(["minimal", "balanced", "dramatic"] as const).map(level => {
+                const meta = {
+                  minimal:  { label: "Minimal",  desc: "Clean stats only. No story, just the numbers.",       icon: "📊", color: "text-gray-400" },
+                  balanced: { label: "Balanced",  desc: "Short narrative with key combat moments.",            icon: "⚔️", color: "text-cyan-400" },
+                  dramatic: { label: "Dramatic",  desc: "Full cinematic narrative with detailed epic events.", icon: "🔥", color: "text-orange-400" },
+                }[level];
+                const active = (settings.narrative?.intensity ?? "balanced") === level;
+                return (
+                  <button
+                    key={level}
+                    onClick={() => setSetting("narrative", "intensity", level)}
+                    className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border transition-all duration-150 ${
+                      active
+                        ? "border-primary/50 bg-primary/10 shadow-[0_0_12px_rgba(var(--primary)/0.15)]"
+                        : "border-border/40 bg-black/20 hover:border-border hover:bg-white/5"
+                    }`}
+                  >
+                    <span className="text-xl mt-0.5 shrink-0">{meta.icon}</span>
+                    <div className="flex-1">
+                      <div className={`text-sm font-semibold ${active ? "text-primary" : "text-foreground"}`}>
+                        {meta.label}
+                        {active && <span className="ml-2 text-[9px] font-mono uppercase tracking-widest opacity-70">Active</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{meta.desc}</p>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 mt-1 shrink-0 flex items-center justify-center transition-all ${
+                      active ? "border-primary bg-primary" : "border-border/50 bg-transparent"
+                    }`}>
+                      {active && <div className="w-1.5 h-1.5 rounded-full bg-background" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Privacy */}
       <SectionHeader title="Data & Privacy" icon={Eye} />
       <Card className="border-border/50 bg-card/50">

@@ -24,6 +24,7 @@ import type {
   AnalyticsOverview,
   BossRaid,
   ChangeClass200,
+  CombatReplayEntry,
   CopyMealsResult,
   CreateGuildBody,
   DailyNutritionSummary,
@@ -38,6 +39,7 @@ import type {
   ExerciseSearchResult,
   FoodSearchResult,
   GeneratedPlan,
+  GetBattleLogParams,
   GetExercisesParams,
   GetNutritionLogsParams,
   GetQuestsParams,
@@ -86,6 +88,8 @@ import type {
   StartBossRaidBody,
   StatAllocation,
   StoreItem,
+  StoreSections,
+  StyleIdentity,
   SubscribePush200,
   SubscribePushBody,
   Title,
@@ -6285,4 +6289,242 @@ export const useUnsubscribePush = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUnsubscribePushMutationOptions(options));
     }
+
+export const getGetBattleLogUrl = (params?: GetBattleLogParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/battle-log?${stringifiedParams}` : `/api/battle-log`
+}
+
+/**
+ * @summary Get combat replay history
+ */
+export const getBattleLog = async (params?: GetBattleLogParams, options?: RequestInit): Promise<CombatReplayEntry[]> => {
+
+  return customFetch<CombatReplayEntry[]>(getGetBattleLogUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBattleLogQueryKey = (params?: GetBattleLogParams,) => {
+    return [
+    `/api/battle-log`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBattleLogQueryOptions = <TData = Awaited<ReturnType<typeof getBattleLog>>, TError = ErrorType<unknown>>(params?: GetBattleLogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBattleLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBattleLogQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBattleLog>>> = ({ signal }) => getBattleLog(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBattleLog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBattleLogQueryResult = NonNullable<Awaited<ReturnType<typeof getBattleLog>>>
+export type GetBattleLogQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get combat replay history
+ */
+
+export function useGetBattleLog<TData = Awaited<ReturnType<typeof getBattleLog>>, TError = ErrorType<unknown>>(
+ params?: GetBattleLogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBattleLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBattleLogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPlayerStyleIdentityUrl = () => {
+
+
+
+
+  return `/api/player/style-identity`
+}
+
+/**
+ * @summary Get player combat style identity
+ */
+export const getPlayerStyleIdentity = async ( options?: RequestInit): Promise<StyleIdentity> => {
+
+  return customFetch<StyleIdentity>(getGetPlayerStyleIdentityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlayerStyleIdentityQueryKey = () => {
+    return [
+    `/api/player/style-identity`
+    ] as const;
+    }
+
+
+export const getGetPlayerStyleIdentityQueryOptions = <TData = Awaited<ReturnType<typeof getPlayerStyleIdentity>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlayerStyleIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlayerStyleIdentityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlayerStyleIdentity>>> = ({ signal }) => getPlayerStyleIdentity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlayerStyleIdentity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlayerStyleIdentityQueryResult = NonNullable<Awaited<ReturnType<typeof getPlayerStyleIdentity>>>
+export type GetPlayerStyleIdentityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get player combat style identity
+ */
+
+export function useGetPlayerStyleIdentity<TData = Awaited<ReturnType<typeof getPlayerStyleIdentity>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlayerStyleIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlayerStyleIdentityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStoreSectionsUrl = () => {
+
+
+
+
+  return `/api/store/sections`
+}
+
+/**
+ * @summary Get store items grouped by section
+ */
+export const getStoreSections = async ( options?: RequestInit): Promise<StoreSections> => {
+
+  return customFetch<StoreSections>(getGetStoreSectionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStoreSectionsQueryKey = () => {
+    return [
+    `/api/store/sections`
+    ] as const;
+    }
+
+
+export const getGetStoreSectionsQueryOptions = <TData = Awaited<ReturnType<typeof getStoreSections>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreSections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStoreSectionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStoreSections>>> = ({ signal }) => getStoreSections({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStoreSections>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStoreSectionsQueryResult = NonNullable<Awaited<ReturnType<typeof getStoreSections>>>
+export type GetStoreSectionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get store items grouped by section
+ */
+
+export function useGetStoreSections<TData = Awaited<ReturnType<typeof getStoreSections>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreSections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStoreSectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

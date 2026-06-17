@@ -1589,6 +1589,52 @@ paths:
                   success:
                     type: boolean
 
+  /battle-log:
+    get:
+      operationId: getBattleLog
+      tags: [training]
+      summary: Get combat replay history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Battle log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CombatReplayEntry"
+
+  /player/style-identity:
+    get:
+      operationId: getPlayerStyleIdentity
+      tags: [player]
+      summary: Get player combat style identity
+      responses:
+        "200":
+          description: Style identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StyleIdentity"
+
+  /store/sections:
+    get:
+      operationId: getStoreSections
+      tags: [store]
+      summary: Get store items grouped by section
+      responses:
+        "200":
+          description: Store sections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreSections"
+
 components:
   schemas:
     HealthStatus:
@@ -2189,6 +2235,9 @@ components:
           type: ["string", "null"]
         completedAt:
           type: ["string", "null"]
+        narrativeIntensity:
+          type: string
+          enum: [minimal, balanced, dramatic]
 
     WorkoutSet:
       type: object
@@ -3125,3 +3174,148 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/GuildActivityItem"
+
+    CombatEvent:
+      type: object
+      properties:
+        text:
+          type: string
+        type:
+          type: string
+
+    CombatReplayEntry:
+      type: object
+      required: [id, encounterName, enemyName, dominantStyle, verdict, xpEarned, goldEarned, prCount, narrativeIntensity, createdAt]
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        sessionId:
+          type: ["integer", "null"]
+        encounterName:
+          type: string
+        enemyName:
+          type: string
+        dominantStyle:
+          type: string
+        secondaryStyle:
+          type: ["string", "null"]
+        hybridArchetype:
+          type: ["string", "null"]
+        verdict:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CombatEvent"
+        styleScores:
+          type: object
+          additionalProperties:
+            type: number
+        xpEarned:
+          type: integer
+        goldEarned:
+          type: integer
+        prCount:
+          type: integer
+        raidImpact:
+          type: ["string", "null"]
+        narrativeIntensity:
+          type: string
+        createdAt:
+          type: string
+
+    StyleIdentityPercentages:
+      type: object
+      properties:
+        strength:
+          type: integer
+        striking:
+          type: integer
+        conditioning:
+          type: integer
+        grappling:
+          type: integer
+        recovery:
+          type: integer
+        discipline:
+          type: integer
+
+    StyleIdentity:
+      type: object
+      required: [strength, striking, conditioning, grappling, recovery, discipline, totalSessions, percentages]
+      properties:
+        strength:
+          type: integer
+        striking:
+          type: integer
+        conditioning:
+          type: integer
+        grappling:
+          type: integer
+        recovery:
+          type: integer
+        discipline:
+          type: integer
+        totalSessions:
+          type: integer
+        hybridArchetype:
+          type: ["string", "null"]
+        percentages:
+          $ref: "#/components/schemas/StyleIdentityPercentages"
+        dominantStyle:
+          type: ["string", "null"]
+
+    StoreSectionItem:
+      type: object
+      required: [id, name, description, type, goldCost, rarity, available]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        goldCost:
+          type: integer
+        rarity:
+          type: string
+        available:
+          type: boolean
+        rankRequired:
+          type: ["string", "null"]
+        levelRequired:
+          type: ["integer", "null"]
+        effectValue:
+          type: ["integer", "null"]
+        section:
+          type: string
+        category:
+          type: string
+        styleAffinity:
+          type: ["string", "null"]
+        meetsRequirements:
+          type: boolean
+
+    StoreSections:
+      type: object
+      properties:
+        permanent:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreSectionItem"
+        daily:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreSectionItem"
+        weekly:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreSectionItem"
+        raid:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreSectionItem"

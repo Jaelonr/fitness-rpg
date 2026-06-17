@@ -106,6 +106,45 @@ router.get("/store/items", async (req, res) => {
   }
 });
 
+const RANK_ORDER = ["E", "D", "C", "B", "A", "S"];
+
+router.get("/store/sections", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer(req.userId);
+    const allItems = await db.select().from(storeItemsTable).where(eq(storeItemsTable.available, true));
+
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    const weekOfYear = Math.floor(dayOfYear / 7);
+
+    const fmt = (item: typeof allItems[0]) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      meetsRequirements:
+        (!item.levelRequired || player.level >= item.levelRequired) &&
+        (!item.rankRequired || RANK_ORDER.indexOf(player.rank ?? "E") >= RANK_ORDER.indexOf(item.rankRequired)),
+    });
+
+    const dailyPool = allItems.filter(i => i.section === "daily");
+    const weeklyPool = allItems.filter(i => i.section === "weekly");
+
+    const rotate = <T>(arr: T[], offset: number, count: number): T[] => {
+      if (arr.length === 0) return [];
+      const start = offset % arr.length;
+      return [...arr.slice(start), ...arr.slice(0, start)].slice(0, count);
+    };
+
+    res.json({
+      permanent: allItems.filter(i => i.section === "permanent").map(fmt),
+      daily: rotate(dailyPool, dayOfYear, 5).map(fmt),
+      weekly: rotate(weeklyPool, weekOfYear, 6).map(fmt),
+      raid: allItems.filter(i => i.section === "raid").map(fmt),
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to get store sections" });
+  }
+});
+
 router.post("/store/purchase", async (req, res) => {
   try {
     const { itemId, quantity = 1 } = req.body;

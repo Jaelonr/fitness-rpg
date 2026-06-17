@@ -20,6 +20,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSoundEngine } from "@/hooks/use-sound-engine";
 import { useCountUp } from "@/hooks/use-count-up";
+import { useSettings } from "@/hooks/use-settings";
+import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -27,27 +29,51 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-interface SummaryData {
+const STYLE_COLORS: Record<string, { text: string; border: string; bg: string; glow: string; label: string }> = {
+  strength:     { text: "text-red-400",    border: "border-red-400/40",    bg: "bg-red-400/10",    glow: "shadow-[0_0_24px_rgba(239,68,68,0.25)]",   label: "Strength" },
+  striking:     { text: "text-orange-400", border: "border-orange-400/40", bg: "bg-orange-400/10", glow: "shadow-[0_0_24px_rgba(249,115,22,0.25)]",  label: "Striking" },
+  conditioning: { text: "text-cyan-400",   border: "border-cyan-400/40",   bg: "bg-cyan-400/10",   glow: "shadow-[0_0_24px_rgba(6,182,212,0.25)]",   label: "Conditioning" },
+  grappling:    { text: "text-purple-400", border: "border-purple-400/40", bg: "bg-purple-400/10", glow: "shadow-[0_0_24px_rgba(168,85,247,0.25)]",  label: "Grappling" },
+  recovery:     { text: "text-green-400",  border: "border-green-400/40",  bg: "bg-green-400/10",  glow: "shadow-[0_0_24px_rgba(34,197,94,0.25)]",   label: "Recovery" },
+  discipline:   { text: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10", glow: "shadow-[0_0_24px_rgba(234,179,8,0.25)]",   label: "Discipline" },
+};
+
+const VERDICT_META: Record<string, { color: string; icon: string }> = {
+  "Victory":           { color: "text-yellow-400", icon: "🏆" },
+  "Narrow Victory":    { color: "text-cyan-400",   icon: "⚔️" },
+  "Strategic Retreat": { color: "text-orange-400", icon: "🛡️" },
+  "Training Complete": { color: "text-green-400",  icon: "✅" },
+};
+
+interface CompletionData {
   xpEarned: number;
   goldEarned: number;
   durationMinutes: number;
   prCount: number;
   totalSets: number;
+  combatReplay: any;
 }
 
-function SessionSummary({
+function CombatReplayModal({
   data,
   sessionName,
   onReturn,
 }: {
-  data: SummaryData;
+  data: CompletionData;
   sessionName: string;
   onReturn: () => void;
 }) {
   const [shown, setShown] = useState(false);
+  const [revealedCount, setRevealedCount] = useState(0);
   const { playSound } = useSoundEngine();
-  const animatedXp = useCountUp(data.xpEarned, 1200, 400);
-  const animatedGold = useCountUp(data.goldEarned, 1200, 500);
+  const animatedXp   = useCountUp(data.xpEarned, 1200, 400);
+  const animatedGold = useCountUp(data.goldEarned, 1200, 600);
+
+  const replay  = data.combatReplay;
+  const events  = (replay?.events ?? []) as Array<{ text: string; type: string }>;
+  const style   = replay?.dominantStyle as string | undefined;
+  const theme   = STYLE_COLORS[style ?? "strength"] ?? STYLE_COLORS.strength;
+  const verdictMeta = VERDICT_META[replay?.verdict] ?? VERDICT_META["Training Complete"];
 
   useEffect(() => {
     const t = setTimeout(() => setShown(true), 80);
@@ -62,63 +88,131 @@ function SessionSummary({
     return undefined;
   }, [shown]);
 
+  useEffect(() => {
+    if (!shown || revealedCount >= events.length) return;
+    const t = setTimeout(() => setRevealedCount(c => c + 1), 650);
+    return () => clearTimeout(t);
+  }, [shown, revealedCount, events.length]);
+
+  const allRevealed = revealedCount >= events.length;
+
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center px-6"
+      className="fixed inset-0 z-[100] bg-black/98 flex flex-col overflow-y-auto"
       style={{ opacity: shown ? 1 : 0, transition: "opacity 0.5s ease-out" }}
     >
       <div
-        className="w-full max-w-sm text-center"
+        className="w-full max-w-sm mx-auto px-5 pt-14 pb-24 space-y-5"
         style={{
-          transform: shown ? "translateY(0) scale(1)" : "translateY(30px) scale(0.95)",
+          transform: shown ? "translateY(0)" : "translateY(24px)",
           transition: "transform 0.5s cubic-bezier(0.34,1.56,0.64,1)",
         }}
       >
-        <div className="mb-2 text-cyan-400/60 font-mono text-xs tracking-[0.3em] uppercase animate-pulse">
-          ─── Victory ───
-        </div>
-        <h1 className="text-5xl font-black font-serif text-white mb-1">
-          Battle Complete
-        </h1>
-        <p className="text-muted-foreground text-sm mb-8 font-mono">{sessionName}</p>
-
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-cyan-500/10 border border-cyan-400/30 rounded-2xl p-4">
-            <Zap className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
-            <div className="text-3xl font-black text-cyan-400">+{animatedXp}</div>
-            <div className="text-[11px] text-muted-foreground mt-1">XP Earned</div>
+        {/* Header */}
+        <div className="text-center">
+          <div className={cn("text-[10px] font-mono tracking-[0.35em] uppercase mb-2 animate-pulse", theme.text)}>
+            ─── Battle Report ───
           </div>
-          <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-2xl p-4">
-            <Coins className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
-            <div className="text-3xl font-black text-yellow-400">+{animatedGold}</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Gold Earned</div>
-          </div>
+          <h1 className="text-4xl font-black font-serif text-white leading-tight">
+            {replay?.encounterName ?? "Battle Complete"}
+          </h1>
+          <p className="text-muted-foreground text-sm font-mono mt-1">
+            vs. {replay?.enemyName ?? sessionName}
+          </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mb-8">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <Timer className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-            <div className="font-bold text-white">{data.durationMinutes}m</div>
-            <div className="text-[10px] text-muted-foreground">Duration</div>
+        {/* Style badge */}
+        {style && (
+          <div className={cn(
+            "flex items-center justify-center gap-2 py-2 px-4 rounded-full border w-fit mx-auto",
+            theme.border, theme.bg, theme.glow
+          )}>
+            <span className={cn("text-xs font-bold font-mono uppercase tracking-widest", theme.text)}>
+              {theme.label} Style
+            </span>
+            {replay?.hybridArchetype && (
+              <span className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
+                {replay.hybridArchetype}
+              </span>
+            )}
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <Sword className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-            <div className="font-bold text-white">{data.totalSets}</div>
-            <div className="text-[10px] text-muted-foreground">Sets</div>
-          </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <Trophy className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
-            <div className="font-bold text-yellow-400">{data.prCount}</div>
-            <div className="text-[10px] text-muted-foreground">New PRs</div>
-          </div>
-        </div>
+        )}
 
-        <Button
-          className="w-full py-6 text-base font-bold bg-cyan-500/20 border border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/30 font-mono tracking-widest"
-          onClick={onReturn}
-        >
-          Return to Base
-        </Button>
+        {/* Narrative events — staggered reveal */}
+        {events.length > 0 && (
+          <div className="space-y-2.5">
+            {events.slice(0, revealedCount).map((ev, i) => (
+              <div
+                key={i}
+                className="animate-in fade-in slide-in-from-bottom-3 duration-400 bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-foreground/90 leading-relaxed"
+              >
+                {ev.text}
+              </div>
+            ))}
+            {!allRevealed && events.length > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce [animation-delay:300ms]" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats + verdict — shown after all events revealed */}
+        {(allRevealed || events.length === 0) && (
+          <div className="animate-in fade-in duration-500 space-y-3">
+            {/* XP / Gold */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-cyan-500/10 border border-cyan-400/30 rounded-2xl p-4 text-center">
+                <Zap className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
+                <div className="text-3xl font-black text-cyan-400">+{animatedXp}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">XP Earned</div>
+              </div>
+              <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-2xl p-4 text-center">
+                <Coins className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
+                <div className="text-3xl font-black text-yellow-400">+{animatedGold}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">Gold Earned</div>
+              </div>
+            </div>
+
+            {/* Mini stats */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                <Timer className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                <div className="font-bold text-white">{data.durationMinutes}m</div>
+                <div className="text-[10px] text-muted-foreground">Duration</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                <Sword className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                <div className="font-bold text-white">{data.totalSets}</div>
+                <div className="text-[10px] text-muted-foreground">Sets</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                <Trophy className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
+                <div className="font-bold text-yellow-400">{data.prCount}</div>
+                <div className="text-[10px] text-muted-foreground">PRs</div>
+              </div>
+            </div>
+
+            {/* Verdict */}
+            <div className={cn(
+              "text-center py-3 border border-white/10 bg-white/5 rounded-xl font-mono text-base font-bold tracking-wide",
+              verdictMeta.color
+            )}>
+              {verdictMeta.icon} {replay?.verdict ?? "Training Complete"}
+            </div>
+
+            <Button
+              className="w-full py-6 text-base font-bold bg-cyan-500/20 border border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/30 font-mono tracking-widest"
+              onClick={onReturn}
+            >
+              Return to Base
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -131,6 +225,7 @@ export default function ActiveSession() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { playSound } = useSoundEngine();
+  const { settings } = useSettings();
 
   const [openExId, setOpenExId] = useState<number | null>(null);
   const [weight, setWeight] = useState("45");
@@ -140,7 +235,7 @@ export default function ActiveSession() {
   const [prFlash, setPrFlash] = useState<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [viewMode, setViewMode] = useState<"active" | "summary">("active");
-  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [completionData, setCompletionData] = useState<CompletionData | null>(null);
 
   const { data: session, isLoading } = useGetWorkoutSession(sessionId, {
     query: {
@@ -245,18 +340,21 @@ export default function ActiveSession() {
   };
 
   const handleFinishBattle = () => {
+    const narrativeIntensity = settings.narrative?.intensity ?? "balanced";
     finishSession.mutate(
-      { id: sessionId, data: { status: "completed" } },
+      { id: sessionId, data: { status: "completed", narrativeIntensity: narrativeIntensity as any } },
       {
         onSuccess: (data: any) => {
           queryClient.invalidateQueries({ queryKey: ["/api/player"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-          setSummaryData({
+          queryClient.invalidateQueries({ queryKey: ["/api/battle-log"] });
+          setCompletionData({
             xpEarned: data.xpEarned ?? 0,
             goldEarned: data.goldEarned ?? 0,
-            durationMinutes: data.durationMinutes ?? Math.floor(elapsedSec / 60),
+            durationMinutes: data.session?.durationMinutes ?? Math.floor(elapsedSec / 60),
             prCount: session?.sets.filter((s: any) => s.isPr).length ?? 0,
             totalSets: session?.sets.length ?? 0,
+            combatReplay: data.combatReplay ?? null,
           });
           setViewMode("summary");
         },
@@ -277,10 +375,10 @@ export default function ActiveSession() {
 
   if (!session) return <div className="p-4 text-muted-foreground">Session not found.</div>;
 
-  if (viewMode === "summary" && summaryData) {
+  if (viewMode === "summary" && completionData) {
     return (
-      <SessionSummary
-        data={summaryData}
+      <CombatReplayModal
+        data={completionData}
         sessionName={session.name}
         onReturn={() => setLocation("/training")}
       />

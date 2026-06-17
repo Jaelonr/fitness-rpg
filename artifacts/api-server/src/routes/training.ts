@@ -3,12 +3,17 @@ import { db } from "@workspace/db";
 import {
   exercisesTable, workoutTemplatesTable, workoutSessionsTable,
   workoutSetsTable, personalRecordsTable, playerTable, nutritionLogsTable,
-  nutritionTargetsTable, playerBiometricsTable
+  nutritionTargetsTable, playerBiometricsTable, bossRaidsTable,
+  combatReplaysTable, playerStyleIdentityTable
 } from "@workspace/db";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { getOrCreatePlayer, buildPlayerResponse } from "../progression";
 import { applyXpEvent, updateStreak } from "../progression";
 import { progressRaidTasks } from "./boss-raids";
+import {
+  classifyWorkoutStyle, generateCombatReplay,
+  type CombatInput, type NarrativeIntensity, type WorkoutSetData,
+} from "../combat-engine";
 
 const router = Router();
 
@@ -173,34 +178,53 @@ router.patch("/training/sessions/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const { player, stats } = await getOrCreatePlayer(req.userId);
     const { status, notes, completedAt } = req.body;
+    const narrativeIntensity: NarrativeIntensity =
+      (req.body.narrativeIntensity as NarrativeIntensity) || "balanced";
 
     const updates: Record<string, any> = {};
     if (notes !== undefined) updates.notes = notes;
 
     let xpResult: any = null;
     let goldEarned = 0;
+    let combatReplay: any = null;
 
     if (status === "completed") {
       const finishedAt = completedAt ? new Date(completedAt) : new Date();
       updates.completedAt = finishedAt;
       updates.status = "completed";
       const [session] = await db.select().from(workoutSessionsTable).where(eq(workoutSessionsTable.id, id));
+
       if (session) {
         const durationMs = finishedAt.getTime() - session.startedAt.getTime();
         const durationMinutes = Math.round(durationMs / 60000);
         updates.durationMinutes = durationMinutes;
 
-        // XP: base 150 + 2 per minute (capped at 60min bonus) + 20 per PR + volume bonus
         const sets = await db.select().from(workoutSetsTable).where(eq(workoutSetsTable.sessionId, id));
         const prCount = sets.filter(s => s.isPr).length;
         const baseXp = 150 + Math.min(durationMinutes, 60) * 2 + prCount * 20;
 
-        // Volume bonus: XP scales with how heavy you lifted relative to your 1RMs
+        // Build exercise map once — used for volume calc AND combat engine
+        const exerciseIds = [...new Set(sets.map(s => s.exerciseId))];
+        const exList = exerciseIds.length > 0
+          ? await db.select().from(exercisesTable).where(inArray(exercisesTable.id, exerciseIds))
+          : [];
+        const exerciseMap = new Map(exList.map(e => [e.id, e]));
+
+        // Build WorkoutSetData for combat engine
+        const workoutSetData: WorkoutSetData[] = sets.map(s => ({
+          exerciseName: s.exerciseName,
+          muscleGroup: exerciseMap.get(s.exerciseId)?.muscleGroup ?? "general",
+          reps: s.reps,
+          weightKg: s.weightUnit === "lbs" ? s.weight * 0.453592 : s.weight,
+          rpe: s.rpe ?? 7,
+          isPr: s.isPr,
+        }));
+
+        // Volume bonus
         let volumeBonus = 0;
         let volumeBonusBreakdown = "";
         const [bio] = await db.select().from(playerBiometricsTable).where(eq(playerBiometricsTable.playerId, player.id));
         if (bio && sets.length > 0) {
-          // Calculate total volume in kg (convert lbs to kg if needed)
           let totalVolumeKg = 0;
           let heaviestRelativeIntensity = 0;
 
@@ -208,8 +232,7 @@ router.patch("/training/sessions/:id", async (req, res) => {
             const weightKg = s.weightUnit === "lbs" ? s.weight * 0.453592 : s.weight;
             totalVolumeKg += weightKg * s.reps;
 
-            // Find the relevant 1RM for this exercise by checking exercise name
-            const [ex] = await db.select().from(exercisesTable).where(eq(exercisesTable.id, s.exerciseId));
+            const ex = exerciseMap.get(s.exerciseId);
             if (ex) {
               const name = ex.name.toLowerCase();
               const mg = ex.muscleGroup.toLowerCase();
@@ -221,16 +244,13 @@ router.patch("/training/sessions/:id", async (req, res) => {
               else if (mg.includes("back") || name.includes("row")) orm = bio.row1rm;
 
               if (orm && weightKg > 0) {
-                const intensity = weightKg / orm; // e.g. 0.8 = 80% of 1RM
+                const intensity = weightKg / orm;
                 heaviestRelativeIntensity = Math.max(heaviestRelativeIntensity, intensity);
               }
             }
           }
 
-          // Volume XP: 1 XP per 100 kg of total volume, capped at 150
           const volumeXp = Math.min(150, Math.floor(totalVolumeKg / 100));
-
-          // Intensity bonus: up to +100 XP for lifting at ≥90% 1RM
           const intensityXp = heaviestRelativeIntensity >= 0.9 ? 100
             : heaviestRelativeIntensity >= 0.8 ? 60
             : heaviestRelativeIntensity >= 0.7 ? 30
@@ -249,7 +269,6 @@ router.patch("/training/sessions/:id", async (req, res) => {
 
         const today = getTodayStr();
 
-        // Update streak + gold first
         await updateStreak(player.id, today);
         await db.update(playerTable).set({
           gold: player.gold + goldEarned,
@@ -257,23 +276,102 @@ router.patch("/training/sessions/:id", async (req, res) => {
           updatedAt: new Date(),
         }).where(eq(playerTable.id, player.id));
 
-        // Apply XP through progression engine (handles level ups + achievements)
         xpResult = await applyXpEvent(player.id, totalXp, "Workout Completed", "training", today);
 
         await progressRaidTasks(player.id, "workout_sessions", 1);
         if (prCount > 0) await progressRaidTasks(player.id, "prs", prCount);
 
-        // Check nutrition bonus — if today's calories are within 200 of target, grant bonus XP
+        // Nutrition bonus
         const nutritionLogs = await db.select().from(nutritionLogsTable)
           .where(and(eq(nutritionLogsTable.playerId, player.id), eq(nutritionLogsTable.date, today)));
         const targets = await db.select().from(nutritionTargetsTable)
           .where(eq(nutritionTargetsTable.playerId, player.id));
+
+        let nutritionMet = false;
         if (nutritionLogs.length > 0 && targets.length > 0) {
           const totalCals = nutritionLogs.reduce((s, n) => s + n.calories, 0);
-          const calTarget = targets[0].calories;
-          if (Math.abs(totalCals - calTarget) <= 200) {
+          const calTarget = targets[0]!.calories;
+          nutritionMet = Math.abs(totalCals - calTarget) <= 200;
+          if (nutritionMet) {
             await applyXpEvent(player.id, 50, "Nutrition Target Met", "nutrition", today);
           }
+        }
+
+        // Get active raids for combat context
+        const activeRaids = await db.select({ title: bossRaidsTable.title })
+          .from(bossRaidsTable)
+          .where(and(eq(bossRaidsTable.playerId, player.id), eq(bossRaidsTable.status, "active")));
+
+        const { player: freshPlayer } = await getOrCreatePlayer(req.userId);
+
+        // Generate Combat Replay
+        const combatInput: CombatInput = {
+          sessionName: session.name,
+          durationMinutes,
+          sets: workoutSetData,
+          prCount,
+          xpEarned: totalXp,
+          goldEarned,
+          nutritionMet,
+          activeRaidTitles: activeRaids.map(r => r.title),
+          gearDrop: null,
+          playerRank: xpResult?.newRank ?? freshPlayer.rank ?? "E",
+          baseClass: freshPlayer.baseClass ?? "Warrior",
+          playerName: freshPlayer.name ?? "Hunter",
+          narrativeIntensity,
+        };
+
+        combatReplay = generateCombatReplay(combatInput);
+
+        // Save combat replay
+        await db.insert(combatReplaysTable).values({
+          playerId: player.id,
+          sessionId: id,
+          encounterName: combatReplay.encounterName,
+          enemyName: combatReplay.enemyName,
+          dominantStyle: combatReplay.dominantStyle,
+          secondaryStyle: combatReplay.secondaryStyle,
+          hybridArchetype: combatReplay.hybridArchetype,
+          verdict: combatReplay.verdict,
+          events: combatReplay.events,
+          styleScores: combatReplay.styleScores,
+          xpEarned: totalXp,
+          goldEarned,
+          prCount,
+          raidImpact: combatReplay.raidImpact,
+          narrativeIntensity,
+        });
+
+        // Upsert player style identity
+        const { scores } = classifyWorkoutStyle(combatInput);
+        const [existingIdentity] = await db.select()
+          .from(playerStyleIdentityTable)
+          .where(eq(playerStyleIdentityTable.playerId, player.id));
+
+        if (existingIdentity) {
+          await db.update(playerStyleIdentityTable).set({
+            strengthScore: existingIdentity.strengthScore + scores.strength,
+            strikingScore: existingIdentity.strikingScore + scores.striking,
+            conditioningScore: existingIdentity.conditioningScore + scores.conditioning,
+            grapplingScore: existingIdentity.grapplingScore + scores.grappling,
+            recoveryScore: existingIdentity.recoveryScore + scores.recovery,
+            disciplineScore: existingIdentity.disciplineScore + scores.discipline,
+            totalSessions: existingIdentity.totalSessions + 1,
+            hybridArchetype: combatReplay.hybridArchetype,
+            updatedAt: new Date(),
+          }).where(eq(playerStyleIdentityTable.playerId, player.id));
+        } else {
+          await db.insert(playerStyleIdentityTable).values({
+            playerId: player.id,
+            strengthScore: scores.strength,
+            strikingScore: scores.striking,
+            conditioningScore: scores.conditioning,
+            grapplingScore: scores.grappling,
+            recoveryScore: scores.recovery,
+            disciplineScore: scores.discipline,
+            totalSessions: 1,
+            hybridArchetype: combatReplay.hybridArchetype,
+          });
         }
       }
     } else {
@@ -301,6 +399,7 @@ router.patch("/training/sessions/:id", async (req, res) => {
       newAchievements: xpResult?.newAchievements || [],
       newTitles: xpResult?.newTitles || [],
       player: buildPlayerResponse(freshPlayer, freshStats),
+      combatReplay,
     });
   } catch (err) {
     req.log.error(err);
@@ -317,7 +416,6 @@ router.post("/training/sessions/:id/sets", async (req, res) => {
     const [exercise] = await db.select().from(exercisesTable).where(eq(exercisesTable.id, exerciseId));
     if (!exercise) return res.status(404).json({ error: "Exercise not found" });
 
-    // Check PR
     const prs = await db.select().from(personalRecordsTable)
       .where(and(eq(personalRecordsTable.playerId, player.id), eq(personalRecordsTable.exerciseId, exerciseId)));
     const e1rm = weight > 0 ? weight * (1 + reps / 30) : 0;

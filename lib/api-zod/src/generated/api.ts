@@ -904,7 +904,8 @@ export const UpdateWorkoutSessionParams = zod.object({
 export const UpdateWorkoutSessionBody = zod.object({
   "status": zod.enum(['active', 'completed', 'abandoned']).optional(),
   "notes": zod.string().nullish(),
-  "completedAt": zod.string().nullish()
+  "completedAt": zod.string().nullish(),
+  "narrativeIntensity": zod.enum(['minimal', 'balanced', 'dramatic']).optional()
 })
 
 export const UpdateWorkoutSessionResponse = zod.object({
@@ -2118,6 +2119,133 @@ export const UnsubscribePushBody = zod.object({
 
 export const UnsubscribePushResponse = zod.object({
   "success": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get combat replay history
+ */
+export const GetBattleLogQueryParams = zod.object({
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetBattleLogResponseItem = zod.object({
+  "id": zod.number(),
+  "playerId": zod.number().optional(),
+  "sessionId": zod.number().nullish(),
+  "encounterName": zod.string(),
+  "enemyName": zod.string(),
+  "dominantStyle": zod.string(),
+  "secondaryStyle": zod.string().nullish(),
+  "hybridArchetype": zod.string().nullish(),
+  "verdict": zod.string(),
+  "events": zod.array(zod.object({
+  "text": zod.string().optional(),
+  "type": zod.string().optional()
+})).optional(),
+  "styleScores": zod.record(zod.string(), zod.number()).optional(),
+  "xpEarned": zod.number(),
+  "goldEarned": zod.number(),
+  "prCount": zod.number(),
+  "raidImpact": zod.string().nullish(),
+  "narrativeIntensity": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetBattleLogResponse = zod.array(GetBattleLogResponseItem)
+
+
+/**
+ * @summary Get player combat style identity
+ */
+export const GetPlayerStyleIdentityResponse = zod.object({
+  "strength": zod.number(),
+  "striking": zod.number(),
+  "conditioning": zod.number(),
+  "grappling": zod.number(),
+  "recovery": zod.number(),
+  "discipline": zod.number(),
+  "totalSessions": zod.number(),
+  "hybridArchetype": zod.string().nullish(),
+  "percentages": zod.object({
+  "strength": zod.number().optional(),
+  "striking": zod.number().optional(),
+  "conditioning": zod.number().optional(),
+  "grappling": zod.number().optional(),
+  "recovery": zod.number().optional(),
+  "discipline": zod.number().optional()
+}),
+  "dominantStyle": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get store items grouped by section
+ */
+export const GetStoreSectionsResponse = zod.object({
+  "permanent": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "type": zod.string(),
+  "goldCost": zod.number(),
+  "rarity": zod.string(),
+  "available": zod.boolean(),
+  "rankRequired": zod.string().nullish(),
+  "levelRequired": zod.number().nullish(),
+  "effectValue": zod.number().nullish(),
+  "section": zod.string().optional(),
+  "category": zod.string().optional(),
+  "styleAffinity": zod.string().nullish(),
+  "meetsRequirements": zod.boolean().optional()
+})).optional(),
+  "daily": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "type": zod.string(),
+  "goldCost": zod.number(),
+  "rarity": zod.string(),
+  "available": zod.boolean(),
+  "rankRequired": zod.string().nullish(),
+  "levelRequired": zod.number().nullish(),
+  "effectValue": zod.number().nullish(),
+  "section": zod.string().optional(),
+  "category": zod.string().optional(),
+  "styleAffinity": zod.string().nullish(),
+  "meetsRequirements": zod.boolean().optional()
+})).optional(),
+  "weekly": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "type": zod.string(),
+  "goldCost": zod.number(),
+  "rarity": zod.string(),
+  "available": zod.boolean(),
+  "rankRequired": zod.string().nullish(),
+  "levelRequired": zod.number().nullish(),
+  "effectValue": zod.number().nullish(),
+  "section": zod.string().optional(),
+  "category": zod.string().optional(),
+  "styleAffinity": zod.string().nullish(),
+  "meetsRequirements": zod.boolean().optional()
+})).optional(),
+  "raid": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "type": zod.string(),
+  "goldCost": zod.number(),
+  "rarity": zod.string(),
+  "available": zod.boolean(),
+  "rankRequired": zod.string().nullish(),
+  "levelRequired": zod.number().nullish(),
+  "effectValue": zod.number().nullish(),
+  "section": zod.string().optional(),
+  "category": zod.string().optional(),
+  "styleAffinity": zod.string().nullish(),
+  "meetsRequirements": zod.boolean().optional()
+})).optional()
 })
 
 

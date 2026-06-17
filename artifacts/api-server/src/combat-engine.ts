@@ -1,0 +1,458 @@
+export type CombatStyle = "strength" | "striking" | "conditioning" | "grappling" | "recovery" | "discipline";
+export type NarrativeIntensity = "minimal" | "balanced" | "dramatic";
+
+export interface StyleScores {
+  strength: number;
+  striking: number;
+  conditioning: number;
+  grappling: number;
+  recovery: number;
+  discipline: number;
+}
+
+export interface WorkoutSetData {
+  exerciseName: string;
+  muscleGroup: string;
+  reps: number;
+  weightKg: number;
+  rpe: number;
+  isPr: boolean;
+}
+
+export interface CombatInput {
+  sessionName: string;
+  durationMinutes: number;
+  sets: WorkoutSetData[];
+  prCount: number;
+  xpEarned: number;
+  goldEarned: number;
+  nutritionMet: boolean;
+  activeRaidTitles: string[];
+  gearDrop: { name: string; rarity: string; slot: string } | null;
+  playerRank: string;
+  baseClass: string;
+  playerName: string;
+  narrativeIntensity: NarrativeIntensity;
+}
+
+export interface CombatEvent {
+  text: string;
+  type: "strike" | "pr" | "stat" | "raid" | "gear" | "nutrition" | "special";
+}
+
+export interface CombatReplayData {
+  encounterName: string;
+  enemyName: string;
+  dominantStyle: CombatStyle;
+  secondaryStyle: CombatStyle | null;
+  hybridArchetype: string | null;
+  verdict: string;
+  events: CombatEvent[];
+  styleScores: StyleScores;
+  raidImpact: string | null;
+}
+
+const STRENGTH_KEYWORDS = [
+  "squat", "deadlift", "bench", "barbell", "rack", "smith machine", "leg press",
+  "pendlay", "sumo", "hex bar", "trap bar", "t-bar", "incline press", "decline press",
+  "flat press", "power clean", "hang clean", "push press", "military press", "ohp",
+  "overhead", "pull-up", "pullup", "chin-up", "chinup", "dip", "row", "pulldown",
+  "cable row", "seated row", "chest press", "shoulder press", "lunge", "rdl",
+  "romanian", "good morning", "hip thrust", "glute bridge",
+];
+
+const STRIKING_KEYWORDS = [
+  "bag", "heavy bag", "boxing", "punch", "jab", "cross", "hook", "uppercut",
+  "combo", "shadowbox", "shadow box", "kickbox", "kick", "muay thai", "strike",
+  "pad", "spar", "round", "fightcamp", "fight camp", "mitt", "speed bag",
+  "double end", "reflex", "footwork", "weave", "slip", "bob",
+];
+
+const GRAPPLING_KEYWORDS = [
+  "wrestl", "sprawl", "shrimp", "bridge", "guard", "takedown", "clinch",
+  "bjj", "jiu", "submission", "pin", "shoot", "grappl", "grip",
+  "armbar", "triangle", "choke", "kimura", "americana", "double leg",
+  "single leg", "slam", "pummeling", "underhook", "overhook",
+];
+
+const CONDITIONING_KEYWORDS = [
+  "run", "jog", "sprint", "treadmill", "elliptical", "cycle", "bike", "cycling",
+  "rowing machine", "erg", "jump rope", "jumprope", "burpee", "step", "stair",
+  "swim", "cardio", "sled", "air bike", "assault bike", "echo bike", "tabata",
+  "circuit", "hiit", "interval", "walk", "incline walk", "march",
+];
+
+const RECOVERY_KEYWORDS = [
+  "stretch", "foam roll", "foam roller", "yoga", "mobility", "band stretch",
+  "hip flexor", "rehab", "recovery", "deload", "cooldown", "cool down",
+  "warmup", "warm up", "active recovery", "pigeon", "downward dog",
+  "child pose", "cat cow", "dynamic stretch", "static stretch",
+];
+
+function matchesKeywords(text: string, keywords: string[]): boolean {
+  const lower = text.toLowerCase();
+  return keywords.some((kw) => lower.includes(kw));
+}
+
+function scoreExercise(set: WorkoutSetData): Partial<StyleScores> {
+  const name = set.exerciseName.toLowerCase();
+  const mg = set.muscleGroup.toLowerCase();
+  const scores: Partial<StyleScores> = {};
+
+  if (matchesKeywords(name, STRENGTH_KEYWORDS) || matchesKeywords(mg, ["chest", "back", "legs", "glutes", "hamstring", "quad", "shoulder"])) {
+    const isHeavy = set.reps <= 6 && set.weightKg > 40;
+    const isModerate = set.reps <= 10 && set.weightKg > 20;
+    scores.strength = isHeavy ? 3 : isModerate ? 2 : 1;
+  }
+
+  if (matchesKeywords(name, STRIKING_KEYWORDS)) {
+    scores.striking = 3;
+  }
+
+  if (matchesKeywords(name, GRAPPLING_KEYWORDS)) {
+    scores.grappling = 3;
+  }
+
+  if (matchesKeywords(name, CONDITIONING_KEYWORDS) || set.reps > 20) {
+    scores.conditioning = set.reps > 20 ? 2 : 3;
+  }
+
+  if (matchesKeywords(name, RECOVERY_KEYWORDS) || (set.rpe <= 4 && set.weightKg === 0)) {
+    scores.recovery = 2;
+  }
+
+  if (set.isPr) {
+    scores.strength = (scores.strength ?? 0) + 2;
+  }
+
+  return scores;
+}
+
+export function classifyWorkoutStyle(input: CombatInput): { dominant: CombatStyle; secondary: CombatStyle | null; scores: StyleScores } {
+  const totals: StyleScores = { strength: 0, striking: 0, conditioning: 0, grappling: 0, recovery: 0, discipline: 0 };
+
+  const sessionLower = input.sessionName.toLowerCase();
+
+  if (matchesKeywords(sessionLower, STRIKING_KEYWORDS)) totals.striking += 10;
+  if (matchesKeywords(sessionLower, GRAPPLING_KEYWORDS)) totals.grappling += 10;
+  if (matchesKeywords(sessionLower, CONDITIONING_KEYWORDS) || sessionLower.includes("cardio")) totals.conditioning += 8;
+  if (matchesKeywords(sessionLower, RECOVERY_KEYWORDS) || sessionLower.includes("mobility") || sessionLower.includes("deload")) totals.recovery += 8;
+  if (matchesKeywords(sessionLower, STRENGTH_KEYWORDS) || sessionLower.includes("strength") || sessionLower.includes("power")) totals.strength += 6;
+
+  for (const set of input.sets) {
+    const partial = scoreExercise(set);
+    for (const [k, v] of Object.entries(partial)) {
+      totals[k as CombatStyle] += v ?? 0;
+    }
+  }
+
+  if (input.durationMinutes > 50 && totals.conditioning < 5) totals.conditioning += 4;
+  if (input.durationMinutes < 20) totals.recovery += 3;
+
+  if (input.nutritionMet) totals.discipline += 8;
+
+  if (input.prCount > 0) totals.strength += input.prCount * 3;
+
+  const avgRpe = input.sets.length > 0
+    ? input.sets.reduce((s, x) => s + x.rpe, 0) / input.sets.length
+    : 0;
+  if (avgRpe >= 8.5) totals.strength += 4;
+  if (avgRpe <= 4 && input.sets.length > 0) totals.recovery += 3;
+
+  const sorted = (Object.entries(totals) as [CombatStyle, number][]).sort((a, b) => b[1] - a[1]);
+
+  const dominant = sorted[0][0];
+  const secondary = sorted[1][1] > 0 && sorted[1][0] !== dominant ? sorted[1][0] : null;
+
+  return { dominant, secondary, scores: totals };
+}
+
+export function getHybridArchetype(scores: StyleScores): string | null {
+  const total = Object.values(scores).reduce((s, v) => s + v, 0);
+  if (total === 0) return null;
+
+  const pcts: StyleScores = {
+    strength: scores.strength / total,
+    striking: scores.striking / total,
+    conditioning: scores.conditioning / total,
+    grappling: scores.grappling / total,
+    recovery: scores.recovery / total,
+    discipline: scores.discipline / total,
+  };
+
+  if (pcts.strength > 0.4 && pcts.striking > 0.2) return "Warbreaker";
+  if (pcts.strength > 0.4 && pcts.conditioning > 0.2) return "Vanguard";
+  if (pcts.striking > 0.3 && pcts.conditioning > 0.2) return "Duelist";
+  if (pcts.grappling > 0.3 && pcts.strength > 0.2) return "Titan Controller";
+  if (pcts.discipline > 0.2 && pcts.recovery > 0.15) return "Iron Monk";
+  if (pcts.conditioning > 0.25 && pcts.recovery > 0.2) return "Wind Guardian";
+
+  const dominant = Math.max(...Object.values(pcts));
+  if (dominant < 0.3) return "Adventurer";
+
+  return null;
+}
+
+const RANK_ENEMIES: Record<string, string[][]> = {
+  E: [
+    ["Crumbling Dungeon", "Rabid Stone Golem"], ["Goblin Outpost", "Feral Horde Leader"],
+    ["Rusted Gate", "Iron Scarecrow"], ["Hollow Cave", "Cave Lurker"], ["Forgotten Shrine", "Cursed Guardian"],
+  ],
+  D: [
+    ["Ancient Forest Gate", "Shadow Wolf Alpha"], ["Abandoned Fortress", "Iron Sentinel"],
+    ["Cursed Mine", "Stone Drake"], ["Crimson Swamp", "Blood Toad King"], ["Thunder Ridge", "Storm Boar"],
+  ],
+  C: [
+    ["Corrupted Tower", "Shadow Wraith"], ["Dark Labyrinth", "Mirror Demon"], ["Frozen Abyss", "Frost Revenant"],
+    ["Burning Wastes", "Ember Tyrant"], ["Sunken Ruins", "Deep One"],
+  ],
+  B: [
+    ["Void Fracture", "Void Chimera"], ["Iron Keep", "The Iron Monarch"], ["Dark Gate B-52", "Twin Blade Cursed Knight"],
+    ["Celestial Prison", "Fallen Apostle"], ["Demon Steppe", "Chaos Archon"],
+  ],
+  A: [
+    ["Demon King's Palace", "Abyssal Hydra"], ["Dimensional Rift", "The Shattered God"],
+    ["Shadow Realm", "Shadow Sovereign"], ["Eternal Gate", "Ancient Leviathan"], ["Sky Fortress", "Aerial Warlord"],
+  ],
+  S: [
+    ["National-Level Gate", "The Void Incarnate"], ["Mythic Dungeon: Abyss Core", "Ancient Dragon"],
+    ["The Final Gate", "World-Level Threat"], ["Infinite Tower Floor 100", "Monarch of Ruin"],
+  ],
+};
+
+function pickEnemy(rank: string, style: CombatStyle): [string, string] {
+  const bucket = RANK_ENEMIES[rank] ?? RANK_ENEMIES["E"];
+  const styleIndex: Record<CombatStyle, number> = { strength: 0, striking: 1, conditioning: 2, grappling: 3, recovery: 4, discipline: 4 };
+  const baseIdx = styleIndex[style] % bucket.length;
+  return (bucket[baseIdx] ?? bucket[0]) as [string, string];
+}
+
+const STYLE_EVENTS: Record<CombatStyle, Record<NarrativeIntensity, string[]>> = {
+  strength: {
+    minimal: [
+      "Heavy compound lifts dominated the session.",
+      "Significant loading across major muscle groups.",
+      "Progressive overload applied.",
+    ],
+    balanced: [
+      "You drove through heavy compound work, each rep a hammer strike against the enemy's defenses.",
+      "Raw strength output overwhelmed the enemy's guards.",
+      "Iron discipline under the bar translated into crushing blows.",
+    ],
+    dramatic: [
+      "With earth-shaking resolve, you drove the barbell through every rep — each repetition shattering the enemy's armor like paper.",
+      "The dungeon walls trembled as your raw output reached critical mass. The enemy's guard broke under the pressure.",
+      "You became an unmovable force. The enemy could not withstand your crushing power and staggered backward.",
+    ],
+  },
+  striking: {
+    minimal: [
+      "Striking-focused session completed.",
+      "High output across punch/kick combinations.",
+      "Speed and precision maintained.",
+    ],
+    balanced: [
+      "Your relentless combo output left no room for the enemy to recover.",
+      "Swift footwork and precision strikes kept the enemy off balance throughout.",
+      "You slipped the counterattack and returned fire with a brutal combination.",
+    ],
+    dramatic: [
+      "You unleashed a storm of precision — jab, cross, hook — the enemy barely registered the first hit before the third had already landed.",
+      "Moving like smoke, you slipped beneath the enemy's guard and detonated an elbow strike that rocked the encounter.",
+      "A flurry of footwork and controlled aggression dismantled the enemy's strategy. They had no answer for your tempo.",
+    ],
+  },
+  conditioning: {
+    minimal: [
+      "Cardio/conditioning session logged.",
+      "Sustained effort across full session duration.",
+      "Endurance output maintained.",
+    ],
+    balanced: [
+      "You refused to let the enemy set the pace, outlasting it through sheer attrition.",
+      "Where others would have slowed, you accelerated — the enemy's stamina failed first.",
+      "High-tempo output wore the enemy down before the final exchange.",
+    ],
+    dramatic: [
+      "You circled the enemy like wind — never stopping, never tiring, always pressuring. When it finally slowed, you were still fresh.",
+      "Your conditioning outlasted everything the dungeon threw at you. The enemy exhausted itself trying to keep up.",
+      "The encounter stretched on, but you had trained for this. While the enemy gasped, you moved through it like water.",
+    ],
+  },
+  grappling: {
+    minimal: [
+      "Grappling/mat work session completed.",
+      "Control and positioning work logged.",
+      "Takedown and ground work practiced.",
+    ],
+    balanced: [
+      "You closed the distance and took the enemy to the ground, negating its striking threat entirely.",
+      "Control over positioning denied the enemy any chance to counter.",
+      "A precise takedown entry and relentless ground pressure sealed the outcome.",
+    ],
+    dramatic: [
+      "The moment the enemy committed to an attack, you shot in — a perfect level change, a thunderous double-leg. It had no answer.",
+      "You pinned it to the ground with methodical control. No matter how it struggled, your weight and technique held fast.",
+      "From your back you worked — shrimping, framing, regaining guard. When the opening came, the submission was already inevitable.",
+    ],
+  },
+  recovery: {
+    minimal: [
+      "Recovery/mobility session completed.",
+      "Active rest and tissue work logged.",
+      "Readiness maintained.",
+    ],
+    balanced: [
+      "You shielded yourself from fatigue, entering the encounter with full readiness.",
+      "Mobility and recovery work replenished your combat reserves before the next Gate opens.",
+      "Proactive recovery is how champions sustain — today you invested in tomorrow's victories.",
+    ],
+    dramatic: [
+      "Like a fortress preparing for siege, you reinforced every joint and restored every muscle. The next Gate will face a fully recharged Hunter.",
+      "Your guard regenerated. Fatigue cleansed. The Shadow within you receded — replaced by pristine combat readiness.",
+      "Smart hunters know: a weapon that is never maintained becomes dull. Today you sharpened the blade.",
+    ],
+  },
+  discipline: {
+    minimal: [
+      "Nutrition targets met. Discipline bonus applied.",
+      "Calorie and protein adherence tracked.",
+    ],
+    balanced: [
+      "Your precision with nutrition translated into focus and energy — the enemy felt the difference.",
+      "Hitting your nutrition targets is a form of combat. Your body had exactly what it needed.",
+      "Discipline off the mat is discipline on it. Your fuel management granted a hidden edge.",
+    ],
+    dramatic: [
+      "While others crumbled under hunger and poor fueling, your calculated nutrition kept your aura burning at full intensity.",
+      "The Corruption could not take hold. Your mental discipline held the line — every macro accounted for, every temptation resisted.",
+      "Your nutritional precision was a secret weapon. The enemy never expected a Hunter this prepared.",
+    ],
+  },
+};
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+export function generateCombatReplay(input: CombatInput): CombatReplayData {
+  const { dominant, secondary, scores } = classifyWorkoutStyle(input);
+  const hybridArchetype = getHybridArchetype(scores);
+
+  const [encounterName, enemyName] = pickEnemy(input.playerRank, dominant);
+
+  const events: CombatEvent[] = [];
+  const intensity = input.narrativeIntensity;
+
+  if (intensity === "minimal") {
+    events.push({ type: "strike", text: pick(STYLE_EVENTS[dominant][intensity]) });
+    if (input.prCount > 0) {
+      events.push({ type: "pr", text: `${input.prCount} personal record${input.prCount > 1 ? "s" : ""} set this session.` });
+    }
+    if (input.nutritionMet) {
+      events.push({ type: "nutrition", text: pick(STYLE_EVENTS.discipline[intensity]) });
+    }
+  } else {
+    events.push({ type: "strike", text: pick(STYLE_EVENTS[dominant][intensity]) });
+
+    if (secondary && secondary !== "discipline") {
+      events.push({ type: "strike", text: pick(STYLE_EVENTS[secondary][intensity]) });
+    }
+
+    if (input.prCount > 0) {
+      const prEvents: Record<NarrativeIntensity, string> = {
+        minimal: `PR: ${input.prCount} new record${input.prCount > 1 ? "s" : ""} set.`,
+        balanced: input.prCount === 1
+          ? "You set a new personal record — the numbers don't lie. You are stronger today than you were before."
+          : `You shattered ${input.prCount} personal records in a single session. The System registered each breakthrough.`,
+        dramatic: input.prCount === 1
+          ? "The System flashed a notification: PERSONAL RECORD BROKEN. Your body crossed a threshold it had never reached before. The Gate shuddered."
+          : `In a display of raw potential, you obliterated ${input.prCount} personal records. The enemy recoiled. The dungeon itself registered the shift in power.`,
+      };
+      events.push({ type: "pr", text: prEvents[intensity] });
+    }
+
+    if (input.durationMinutes >= 60) {
+      const durationEvents: Record<NarrativeIntensity, string> = {
+        minimal: `${input.durationMinutes} minutes of continuous effort.`,
+        balanced: `A full ${input.durationMinutes}-minute session — your endurance reserves proved deeper than the enemy anticipated.`,
+        dramatic: `${input.durationMinutes} minutes of unbroken combat. Most Hunters would have retreated. You pushed forward into the dungeon's depths.`,
+      };
+      events.push({ type: "stat", text: durationEvents[intensity] });
+    }
+
+    if (input.nutritionMet) {
+      events.push({ type: "nutrition", text: pick(STYLE_EVENTS.discipline[intensity]) });
+    }
+  }
+
+  if (input.gearDrop) {
+    const gearEvents: Record<NarrativeIntensity, string> = {
+      minimal: `Gear drop: ${input.gearDrop.name} (${input.gearDrop.rarity}).`,
+      balanced: `The dungeon yielded its tribute: ${input.gearDrop.name} — a ${input.gearDrop.rarity} ${input.gearDrop.slot} materialized in your inventory.`,
+      dramatic: `As the enemy dissolved into shadow, a single item remained. The ${input.gearDrop.name} (${input.gearDrop.rarity.toUpperCase()}) — forged in the dungeon's core — bound itself to you.`,
+    };
+    events.push({ type: "gear", text: gearEvents[intensity] });
+  }
+
+  let raidImpact: string | null = null;
+  if (input.activeRaidTitles.length > 0) {
+    const raidName = input.activeRaidTitles[0]!;
+    const raidEvents: Record<NarrativeIntensity, string> = {
+      minimal: `Raid progress: "${raidName}" updated.`,
+      balanced: `Your effort dealt damage to the ${raidName} raid. The boss is weakening.`,
+      dramatic: `Your ${dominant} output cracked the ${raidName}'s outer defense. The boss could feel the shift — your Hunter's aura growing stronger with each session.`,
+    };
+    raidImpact = raidEvents[intensity];
+    events.push({ type: "raid", text: raidImpact });
+  }
+
+  let verdict: string;
+  if (input.prCount > 0 && input.durationMinutes >= 45) {
+    verdict = "Victory";
+  } else if (input.sets.length === 0 || input.durationMinutes < 10) {
+    verdict = "Training Complete";
+  } else if (input.durationMinutes < 20 || dominant === "recovery") {
+    verdict = "Strategic Retreat";
+  } else {
+    verdict = input.prCount > 0 ? "Victory" : "Narrow Victory";
+  }
+
+  return {
+    encounterName,
+    enemyName,
+    dominantStyle: dominant,
+    secondaryStyle: secondary,
+    hybridArchetype,
+    verdict,
+    events,
+    styleScores: scores,
+    raidImpact,
+  };
+}
+
+export function getRaidStyleBonus(dominantStyle: CombatStyle, raidDifficulty: string): { multiplier: number; narrative: string } {
+  const styleWeaknesses: Record<string, CombatStyle[]> = {
+    E: ["conditioning", "strength"],
+    D: ["strength", "conditioning"],
+    C: ["striking", "grappling"],
+    B: ["discipline", "recovery"],
+    A: ["grappling", "striking"],
+    S: ["discipline", "strength"],
+  };
+
+  const weaknesses = styleWeaknesses[raidDifficulty] ?? [];
+  if (weaknesses.includes(dominantStyle)) {
+    const narratives: Record<CombatStyle, string> = {
+      strength: "Your heavy training cracked the boss's armor plating. Strength damage +35% due to boss weakness.",
+      striking: "Your striking precision found the gaps in the boss's defense. Striking damage +35% due to boss weakness.",
+      conditioning: "Your conditioning allowed you to outlast the boss's initial burst. Attrition damage +35% due to boss weakness.",
+      grappling: "You negated the boss's mobility entirely. Control bonus +35% due to boss weakness.",
+      recovery: "Your restoration disrupted the boss's corruption aura. Defense bonus +35% due to boss resistance.",
+      discipline: "Your disciplined approach overcame the boss's mental pressure. Discipline bonus +35% due to boss weakness.",
+    };
+    return { multiplier: 1.35, narrative: narratives[dominantStyle] };
+  }
+
+  return { multiplier: 1.0, narrative: "" };
+}
