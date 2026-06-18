@@ -5,6 +5,7 @@ import {
   useGetDashboardSummary,
   useChangeClass,
   useRespecPlayer,
+  useGetPlayerStyleIdentity,
   getGetDashboardSummaryQueryKey,
   getGetPlayerQueryKey,
 } from "@workspace/api-client-react";
@@ -59,8 +60,39 @@ const DANGER_COLOR = (d: number) => {
   return "bg-green-500";
 };
 
+const STYLE_META: Record<string, { label: string; color: string; border: string; bg: string; glow: string }> = {
+  strength:     { label: "Strength",     color: "text-red-400",    border: "border-red-400/30",    bg: "bg-red-400/8",    glow: "shadow-[0_0_20px_rgba(239,68,68,0.12)]" },
+  striking:     { label: "Striking",     color: "text-orange-400", border: "border-orange-400/30", bg: "bg-orange-400/8", glow: "shadow-[0_0_20px_rgba(249,115,22,0.12)]" },
+  conditioning: { label: "Conditioning", color: "text-cyan-400",   border: "border-cyan-400/30",   bg: "bg-cyan-400/8",   glow: "shadow-[0_0_20px_rgba(6,182,212,0.12)]" },
+  grappling:    { label: "Grappling",    color: "text-purple-400", border: "border-purple-400/30", bg: "bg-purple-400/8", glow: "shadow-[0_0_20px_rgba(168,85,247,0.12)]" },
+  recovery:     { label: "Recovery",     color: "text-green-400",  border: "border-green-400/30",  bg: "bg-green-400/8",  glow: "shadow-[0_0_20px_rgba(34,197,94,0.12)]" },
+  discipline:   { label: "Discipline",   color: "text-yellow-400", border: "border-yellow-400/30", bg: "bg-yellow-400/8", glow: "shadow-[0_0_20px_rgba(234,179,8,0.12)]" },
+};
+
+const STYLE_NARRATIVE: Record<string, string> = {
+  strength:     "The dungeon network has registered your output. Gate commanders file unusual reports — a Hunter whose raw force exceeds standard containment projections. You do not fight clever. You fight until nothing is left standing.",
+  striking:     "Strike-pattern analysts have flagged your Hunter file. Your combination efficiency and tempo control have become topics in underground circles. Enemies adapt their guard stances when your name is mentioned.",
+  conditioning: "Stamina reports from cleared Gates are consistent: the enemy runs out before you do. Long-duration encounters are your natural environment. The System logs your conditioning output as a strategic anomaly.",
+  grappling:    "Control-based engagement reports are piling up. Multiple A-Rank threats neutralized through positional dominance alone, zero critical strikes registered. The Association is watching you carefully.",
+  recovery:     "Strategic longevity metrics place you in the top percentile. Sustained readiness across consecutive days suggests a disciplined maintenance protocol unlike standard Hunters. The System marks you as a long-term force.",
+  discipline:   "Your nutritional consistency has been flagged as a contributing factor to aura stability. Discipline scores are an outlier — most Hunters burn bright then fade. You maintain a controlled flame the darkness cannot extinguish.",
+};
+
+const HYBRID_NARRATIVE: Record<string, string> = {
+  "Warbreaker":       "Two power streams collide inside you — the force of raw strength and the precision of a striking artist. Reports from cleared Gates describe an enemy that could not decide whether to armor against blunt force or striking speed. It tried both. It survived neither.",
+  "Vanguard":         "Heavy output meets relentless conditioning. Gate commanders cannot plan for a Hunter who generates peak force at minute forty. The System's tactical engine has flagged your profile: a frontline force that hits hard and outlasts attrition.",
+  "Duelist":          "Striking precision fused with conditioning endurance. Enemies fall not from single decisive blows but from the accumulated weight of your relentless tempo. Technical execution that doesn't degrade — a rare and dangerous combination.",
+  "Titan Controller": "Grappling dominance reinforced by raw strength. Your ability to close distance and impose physical control has nullified threats that defeated entire Hunter teams. The floor is your domain. The System notes: no recorded escapes from your control.",
+  "Iron Monk":        "Discipline and recovery fused into one principle: the prepared mind cannot be broken. You are the Hunter who never enters a Gate unprepared — and the darkness knows it. Your aura is clean, your resolve is absolute.",
+  "Wind Guardian":    "Endurance extended by recovery mastery. A Hunter who outlasts sieges, replenishes, and returns. An enemy who defeats you has only created a problem for itself tomorrow. The System logs you as a persistent, escalating threat.",
+  "Adventurer":       "No single path has claimed you. The System logs your pattern as ADVENTURER — a Hunter who does not specialize but explores. The world of Aethoria has seen Warriors and Strikers, but balanced Hunters are rarer, and harder to predict.",
+};
+
 export default function World() {
   const { data: summary, isLoading } = useGetDashboardSummary();
+  const { data: identity } = useGetPlayerStyleIdentity({
+    query: { queryKey: ["/api/player/style-identity"] },
+  });
   const [, navigate] = useLocation();
   const qc = useQueryClient();
 
@@ -185,6 +217,71 @@ export default function World() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Hunter's Mark — Narrative Consequence */}
+      {identity && (identity.totalSessions ?? 0) > 0 && (() => {
+        const dom = identity.dominantStyle as string | null | undefined;
+        const hybrid = identity.hybridArchetype as string | null | undefined;
+        const m = dom ? STYLE_META[dom] : undefined;
+        const styleNarrative = dom ? STYLE_NARRATIVE[dom] : undefined;
+        const hybridNarrative = hybrid ? HYBRID_NARRATIVE[hybrid] : undefined;
+        const pcts = identity.percentages as Record<string, number> | undefined;
+
+        if (!m || !styleNarrative) return null;
+        return (
+          <Card className={cn("border overflow-hidden", m.border, m.bg, m.glow)}>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                    Hunter's Mark · {identity.totalSessions} Sessions
+                  </div>
+                  <div className={cn("text-lg font-black font-serif tracking-wide", m.color)}>
+                    {m.label} Fighter
+                  </div>
+                  {hybrid && (
+                    <div className={cn("text-[10px] font-mono mt-1 border px-2 py-0.5 rounded-full w-fit", m.border, m.color, m.bg)}>
+                      ◆ {hybrid}
+                    </div>
+                  )}
+                </div>
+                <div className={cn(
+                  "w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0",
+                  m.border, m.bg, m.glow
+                )}>
+                  <Swords className={cn("w-5 h-5", m.color)} />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                {hybridNarrative ?? styleNarrative}
+              </p>
+
+              {pcts && (
+                <div className="space-y-1.5 pt-1 border-t border-white/8">
+                  {(["strength", "striking", "conditioning", "grappling", "recovery", "discipline"] as const).map(s => {
+                    const sm = STYLE_META[s];
+                    const pct = pcts[s] ?? 0;
+                    if (!sm || pct === 0) return null;
+                    return (
+                      <div key={s} className="flex items-center gap-2">
+                        <span className={cn("text-[9px] font-mono w-20 shrink-0", sm.color)}>{sm.label}</span>
+                        <div className="flex-1 h-1 bg-white/8 rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-1000", sm.color.replace("text-", "bg-"))}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-mono text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Current Location */}
       <Card className="border-primary/30 bg-primary/5">

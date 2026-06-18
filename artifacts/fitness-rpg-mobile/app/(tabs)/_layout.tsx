@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "building.columns", selected: "building.columns.fill" }} />
         <Label>Guild Hall</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="battle-log">
+        <Icon sf={{ default: "shield.lefthalf.filled", selected: "shield.lefthalf.filled.slash" }} />
+        <Label>Battle</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="inventory">
         <Icon sf={{ default: "backpack", selected: "backpack.fill" }} />
         <Label>Inventory</Label>
@@ -40,7 +44,6 @@ function NativeTabLayout() {
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
         <Label>Settings</Label>
       </NativeTabs.Trigger>
-
     </NativeTabs>
   );
 }
@@ -115,6 +118,18 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="battle-log"
+        options={{
+          title: "Battle",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="shield.lefthalf.filled" tintColor={color} size={22} />
+            ) : (
+              <Feather name="shield" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
         name="inventory"
         options={{
           title: "Inventory",
@@ -164,10 +179,6 @@ function ClassicTabLayout() {
       />
 
       {/* Hidden tabs — code preserved, not visible in tab bar */}
-      <Tabs.Screen
-        name="battle-log"
-        options={{ href: null, title: "Battle Log" }}
-      />
       <Tabs.Screen
         name="quests"
         options={{ href: null, title: "Quests" }}
