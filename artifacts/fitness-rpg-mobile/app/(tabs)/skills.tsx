@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -10,9 +11,11 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetSkillTrees,
+  useGetDashboardSummary,
   useUnlockSkillNode,
   getGetSkillTreesQueryKey,
   type SkillTree,
@@ -43,17 +46,44 @@ function metaOf(category: string): CategoryMeta {
   return CATEGORY_META[category] ?? CATEGORY_META.discipline;
 }
 
+// ── Player context passed to state helpers ────────────────────────────────────
+
+interface PlayerCtx {
+  stats: Record<string, number> | null;
+}
+
 // ── Node state helper ─────────────────────────────────────────────────────────
 
 type NodeState = "unlocked" | "unlockable" | "locked";
 
-function nodeState(node: SkillNode, allNodes: SkillNode[]): NodeState {
+function nodeState(node: SkillNode, allNodes: SkillNode[], player: PlayerCtx): NodeState {
   if (node.unlocked) return "unlocked";
+
+  // Prerequisite nodes
   const prereqs = node.prerequisiteNodeIds ?? [];
-  if (prereqs.length === 0) return "unlockable";
-  return prereqs.every((pid) => allNodes.find((n) => n.id === pid)?.unlocked)
-    ? "unlockable"
-    : "locked";
+  if (prereqs.length > 0 && !prereqs.every((pid) => allNodes.find((n) => n.id === pid)?.unlocked)) {
+    return "locked";
+  }
+
+  // Stat requirements (XP mastery is enforced by backend and surfaced via Alert on failure)
+  if (player.stats) {
+    const reqs = node.statRequirements as unknown as Record<string, number> | null;
+    if (reqs) {
+      for (const [stat, required] of Object.entries(reqs)) {
+        if (required > 0 && (player.stats[stat] ?? 0) < required) {
+          return "locked";
+        }
+      }
+    }
+  }
+
+  return "unlockable";
+}
+
+// ── Requirement check helpers (for per-item met/unmet in detail sheet) ────────
+
+function statReqMet(stat: string, required: number, player: PlayerCtx): boolean {
+  return (player.stats?.[stat] ?? 0) >= required;
 }
 
 // ── Discipline tab strip ──────────────────────────────────────────────────────
@@ -86,8 +116,8 @@ function DisciplineTabs({
             style={[
               s.disciplineTab,
               {
-                borderColor:       isActive ? meta.color           : colors.border,
-                backgroundColor:   isActive ? meta.color + "18"    : colors.card,
+                borderColor:     isActive ? meta.color        : colors.border,
+                backgroundColor: isActive ? meta.color + "18" : colors.card,
               },
             ]}
             activeOpacity={0.75}
@@ -115,26 +145,32 @@ function NodeCircle({
   state,
   meta,
   onPress,
+  justUnlocked,
   colors,
 }: {
   node: SkillNode;
   state: NodeState;
   meta: CategoryMeta;
   onPress: () => void;
+  justUnlocked: boolean;
   colors: ReturnType<typeof useColors>;
 }) {
   const borderColor =
+    justUnlocked       ? "#ffbf00"          :
     state === "unlocked"   ? meta.color       :
     state === "unlockable" ? colors.primary    :
     colors.border + "50";
 
   const bgColor =
-    state === "unlocked"   ? meta.color + "18"  :
+    justUnlocked           ? "#ffbf0018"          :
+    state === "unlocked"   ? meta.color + "18"    :
     state === "unlockable" ? colors.primary + "12" :
     colors.background;
 
   const glowStyle =
-    state === "unlocked"
+    justUnlocked
+      ? { shadowColor: "#ffbf00", shadowRadius: 14, shadowOpacity: 0.9, elevation: 8 }
+      : state === "unlocked"
       ? { shadowColor: meta.color, shadowRadius: 10, shadowOpacity: 0.7, elevation: 6 }
       : state === "unlockable"
       ? { shadowColor: colors.primary, shadowRadius: 6, shadowOpacity: 0.4, elevation: 3 }
@@ -157,9 +193,10 @@ function NodeCircle({
           </Text>
         </View>
 
-        {state === "unlocked"   ? <Text style={s.nodeEmoji}>{meta.emoji}</Text>          :
-         state === "unlockable" ? <Text style={[s.nodeStar, { color: colors.primary }]}>✦</Text> :
-                                  <Text style={s.nodeLock}>🔒</Text>}
+        {justUnlocked            ? <Text style={{ fontSize: 18 }}>✦</Text>          :
+         state === "unlocked"    ? <Text style={s.nodeEmoji}>{meta.emoji}</Text>     :
+         state === "unlockable"  ? <Text style={[s.nodeStar, { color: colors.primary }]}>✦</Text> :
+                                   <Text style={s.nodeLock}>🔒</Text>}
       </View>
 
       <Text
@@ -167,8 +204,9 @@ function NodeCircle({
           s.nodeName,
           {
             color:
-              state === "unlocked"   ? meta.color          :
-              state === "unlockable" ? colors.foreground    :
+              justUnlocked           ? "#ffbf00"           :
+              state === "unlocked"   ? meta.color           :
+              state === "unlockable" ? colors.foreground     :
               colors.mutedForeground,
           },
         ]}
@@ -177,7 +215,13 @@ function NodeCircle({
         {node.name}
       </Text>
 
-      {state === "unlockable" && (
+      {justUnlocked && (
+        <View style={[s.costChip, { borderColor: "#ffbf0060", backgroundColor: "#ffbf0018" }]}>
+          <Text style={[s.costChipText, { color: "#ffbf00" }]}>UNLOCKED</Text>
+        </View>
+      )}
+
+      {!justUnlocked && state === "unlockable" && (
         <View style={[s.costChip, { borderColor: colors.primary + "60", backgroundColor: colors.primary + "18" }]}>
           <Text style={[s.costChipText, { color: colors.primary }]}>{node.xpCost} XP</Text>
         </View>
@@ -203,6 +247,7 @@ function TierConnector({ color }: { color: string }) {
 function NodeDetailModal({
   node,
   tree,
+  player,
   onClose,
   onUnlock,
   isPending,
@@ -210,21 +255,24 @@ function NodeDetailModal({
 }: {
   node: SkillNode | null;
   tree: SkillTree;
+  player: PlayerCtx;
   onClose: () => void;
-  onUnlock: (id: number) => void;
+  onUnlock: (id: number, onDone: () => void) => void;
   isPending: boolean;
   colors: ReturnType<typeof useColors>;
 }) {
   if (!node) return null;
 
   const meta    = metaOf(tree.category);
-  const state   = nodeState(node, tree.nodes);
+  const state   = nodeState(node, tree.nodes, player);
   const prereqs = (node.prerequisiteNodeIds ?? []).map((pid) =>
     tree.nodes.find((n) => n.id === pid)
   );
   const statReqs = Object.entries(node.statRequirements ?? {}).filter(
     ([, v]) => (v as number) > 0
   );
+
+  const xpOk = node.xpCost <= 0 || (player.stats != null);
 
   return (
     <Modal
@@ -244,15 +292,14 @@ function NodeDetailModal({
             d.sheet,
             {
               backgroundColor: colors.card,
-              borderColor:
-                state === "unlocked" ? meta.color + "60" : colors.border,
+              borderColor: state === "unlocked" ? meta.color + "60" : colors.border,
             },
           ]}
         >
-          {/* Category color accent strip */}
+          {/* Category accent strip */}
           <View style={[d.accent, { backgroundColor: meta.color }]} />
 
-          {/* Header: name + XP cost */}
+          {/* Header */}
           <View style={d.headerRow}>
             <View style={{ flex: 1 }}>
               <View style={d.badgeRow}>
@@ -277,13 +324,10 @@ function NodeDetailModal({
                       },
                     ]}
                   >
-                    {state === "unlocked"   ? "UNLOCKED"   :
-                     state === "unlockable" ? "UNLOCKABLE" : "LOCKED"}
+                    {state === "unlocked" ? "UNLOCKED" : state === "unlockable" ? "UNLOCKABLE" : "LOCKED"}
                   </Text>
                 </View>
-                <Text style={[d.tierText, { color: colors.mutedForeground }]}>
-                  Tier {node.tier}
-                </Text>
+                <Text style={[d.tierText, { color: colors.mutedForeground }]}>Tier {node.tier}</Text>
               </View>
               <Text style={[d.nodeTitle, { color: state === "unlocked" ? meta.color : colors.foreground }]}>
                 {node.name}
@@ -291,17 +335,16 @@ function NodeDetailModal({
             </View>
 
             {!node.unlocked && (
-              <View style={[d.xpBubble, { borderColor: meta.color + "50", backgroundColor: meta.color + "15" }]}>
-                <Text style={[d.xpAmt,   { color: meta.color }]}>{node.xpCost}</Text>
-                <Text style={[d.xpLabel, { color: meta.color + "cc" }]}>XP</Text>
+              <View style={[d.xpBubble, { borderColor: xpOk ? meta.color + "50" : "#ef444450", backgroundColor: xpOk ? meta.color + "15" : "#ef444415" }]}>
+                <Text style={[d.xpAmt, { color: xpOk ? meta.color : "#ef4444" }]}>{node.xpCost}</Text>
+                <Text style={[d.xpLabel, { color: (xpOk ? meta.color : "#ef4444") + "cc" }]}>XP</Text>
+                <Text style={{ fontSize: 9, color: xpOk ? "#22c55e" : "#ef4444" }}>{xpOk ? "✓" : "✗"}</Text>
               </View>
             )}
           </View>
 
           {/* Description */}
-          <Text style={[d.description, { color: colors.mutedForeground }]}>
-            {node.description}
-          </Text>
+          <Text style={[d.description, { color: colors.mutedForeground }]}>{node.description}</Text>
 
           {/* Effect */}
           {node.effect && (
@@ -316,39 +359,46 @@ function NodeDetailModal({
             <View style={[d.warnBox, { borderColor: "#ffbf0030" }]}>
               <Text style={{ fontSize: 12 }}>⚠️</Text>
               <Text style={[d.warnText, { color: colors.mutedForeground }]}>
-                Requires:{" "}
-                <Text style={{ color: "#ffbf00" }}>{node.equipmentRequired}</Text>
+                Requires: <Text style={{ color: "#ffbf00" }}>{node.equipmentRequired}</Text>
               </Text>
             </View>
           )}
 
-          {/* Stat requirements */}
+          {/* Stat requirements with per-stat met/unmet */}
           {statReqs.length > 0 && (
             <View style={d.section}>
-              <Text style={[d.sectionLabel, { color: colors.mutedForeground }]}>
-                STAT REQUIREMENTS
-              </Text>
+              <Text style={[d.sectionLabel, { color: colors.mutedForeground }]}>STAT REQUIREMENTS</Text>
               <View style={d.chipRow}>
-                {statReqs.map(([stat, val]) => (
-                  <View
-                    key={stat}
-                    style={[d.chip, { borderColor: colors.border, backgroundColor: colors.background }]}
-                  >
-                    <Text style={[d.chipText, { color: colors.mutedForeground }]}>
-                      {stat.slice(0, 1).toUpperCase() + stat.slice(1)} {val as number}+
-                    </Text>
-                  </View>
-                ))}
+                {statReqs.map(([stat, val]) => {
+                  const met = statReqMet(stat, val as number, player);
+                  return (
+                    <View
+                      key={stat}
+                      style={[
+                        d.chip,
+                        {
+                          borderColor: met ? "#22c55e50" : "#ef444450",
+                          backgroundColor: met ? "#22c55e12" : "#ef444412",
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 10, color: met ? "#22c55e" : "#ef4444" }}>
+                        {met ? "✓ " : "✗ "}
+                      </Text>
+                      <Text style={[d.chipText, { color: met ? "#22c55e" : "#ef4444" }]}>
+                        {stat.slice(0, 1).toUpperCase() + stat.slice(1)} {val as number}+
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           )}
 
-          {/* Prerequisites */}
+          {/* Prerequisites with per-prereq met/unmet */}
           {prereqs.length > 0 && (
             <View style={d.section}>
-              <Text style={[d.sectionLabel, { color: colors.mutedForeground }]}>
-                PREREQUISITES
-              </Text>
+              <Text style={[d.sectionLabel, { color: colors.mutedForeground }]}>PREREQUISITES</Text>
               {prereqs.map((pre) =>
                 pre ? (
                   <View key={pre.id} style={d.prereqRow}>
@@ -364,12 +414,12 @@ function NodeDetailModal({
             </View>
           )}
 
-          {/* Unlock / locked button */}
+          {/* Unlock section */}
           {state !== "unlocked" && (
             <View style={d.unlockSection}>
               {state === "locked" && (
                 <Text style={[d.lockedNote, { color: "#ef4444" }]}>
-                  🔒 Prerequisites not met
+                  🔒 Requirements not met — see above
                 </Text>
               )}
               <TouchableOpacity
@@ -379,7 +429,10 @@ function NodeDetailModal({
                     ? { backgroundColor: meta.color + "20", borderColor: meta.color + "70" }
                     : { backgroundColor: colors.background, borderColor: colors.border, opacity: 0.45 },
                 ]}
-                onPress={() => { onUnlock(node.id); onClose(); }}
+                onPress={() => {
+                  if (state !== "unlockable" || isPending) return;
+                  onUnlock(node.id, onClose);
+                }}
                 disabled={state !== "unlockable" || isPending}
                 activeOpacity={0.8}
               >
@@ -389,14 +442,14 @@ function NodeDetailModal({
                   <Text style={[d.unlockBtnText, { color: state === "unlockable" ? meta.color : colors.mutedForeground }]}>
                     {state === "unlockable"
                       ? `✦  Unlock for ${node.xpCost} XP`
-                      : "Prerequisites required"}
+                      : "Requirements not met"}
                   </Text>
                 )}
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Dismiss handle */}
+          {/* Dismiss */}
           <TouchableOpacity onPress={onClose} style={d.dismissRow} activeOpacity={0.7}>
             <Text style={[d.dismissText, { color: colors.mutedForeground }]}>Dismiss</Text>
           </TouchableOpacity>
@@ -410,11 +463,15 @@ function NodeDetailModal({
 
 function TreeView({
   tree,
+  player,
   onNodeTap,
+  unlockedFlashId,
   colors,
 }: {
   tree: SkillTree;
+  player: PlayerCtx;
   onNodeTap: (node: SkillNode) => void;
+  unlockedFlashId: number | null;
   colors: ReturnType<typeof useColors>;
 }) {
   const meta     = metaOf(tree.category);
@@ -454,10 +511,7 @@ function TreeView({
           <View
             style={[
               tv.masteryFill,
-              {
-                backgroundColor: meta.color,
-                width: `${Math.round(progress * 100)}%` as any,
-              },
+              { backgroundColor: meta.color, width: `${Math.round(progress * 100)}%` as any },
             ]}
           />
         </View>
@@ -481,9 +535,10 @@ function TreeView({
               <NodeCircle
                 key={node.id}
                 node={node}
-                state={nodeState(node, tree.nodes)}
+                state={nodeState(node, tree.nodes, player)}
                 meta={meta}
                 onPress={() => onNodeTap(node)}
+                justUnlocked={unlockedFlashId === node.id}
                 colors={colors}
               />
             ))}
@@ -500,25 +555,52 @@ export default function SkillsScreen() {
   const colors = useColors();
   const qc     = useQueryClient();
 
-  const { data: skillTrees, isLoading } = useGetSkillTrees();
+  const { data: skillTrees, isLoading: loadingTrees } = useGetSkillTrees();
+  const { data: summary } = useGetDashboardSummary();
   const unlockNode = useUnlockSkillNode();
 
+  const player: PlayerCtx = {
+    stats: summary?.player?.stats
+      ? {
+          strength:   summary.player.stats.strength,
+          agility:    summary.player.stats.agility,
+          stamina:    summary.player.stats.stamina,
+          vitality:   summary.player.stats.vitality,
+          discipline: summary.player.stats.discipline,
+          sense:      summary.player.stats.sense,
+        }
+      : null,
+  };
+
   const trees = skillTrees ?? [];
-  const [activeTreeId, setActiveTreeId] = useState<number | null>(null);
-  const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
+  const [activeTreeId, setActiveTreeId]       = useState<number | null>(null);
+  const [selectedNode, setSelectedNode]       = useState<SkillNode | null>(null);
+  const [unlockedFlashId, setUnlockedFlashId] = useState<number | null>(null);
 
   const activeTree =
     (activeTreeId !== null ? trees.find((t) => t.id === activeTreeId) : null) ??
     trees[0] ??
     null;
 
-  const handleUnlock = (nodeId: number) => {
+  const handleUnlock = (nodeId: number, onModalClose: () => void) => {
     unlockNode.mutate(
       { id: nodeId },
       {
         onSuccess: () => {
+          onModalClose();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setUnlockedFlashId(nodeId);
+          setTimeout(() => setUnlockedFlashId(null), 2500);
           qc.invalidateQueries({ queryKey: getGetSkillTreesQueryKey() });
           qc.invalidateQueries({ queryKey: ["/api/player"] });
+          qc.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+        },
+        onError: (err: any) => {
+          const message =
+            err?.response?.data?.error ??
+            err?.message ??
+            "Could not unlock skill. Check XP, stats, and prerequisites.";
+          Alert.alert("Unlock Failed", message);
         },
       }
     );
@@ -534,16 +616,14 @@ export default function SkillsScreen() {
         </Text>
       </View>
 
-      {isLoading ? (
+      {loadingTrees ? (
         <View style={s.centerBox}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : trees.length === 0 ? (
         <View style={[s.emptyBox, { borderColor: colors.border }]}>
           <Text style={s.emptyEmoji}>⚡</Text>
-          <Text style={[s.emptyTitle, { color: colors.mutedForeground }]}>
-            No skill trees yet
-          </Text>
+          <Text style={[s.emptyTitle, { color: colors.mutedForeground }]}>No skill trees yet</Text>
         </View>
       ) : (
         <>
@@ -567,7 +647,9 @@ export default function SkillsScreen() {
             {activeTree && (
               <TreeView
                 tree={activeTree}
+                player={player}
                 onNodeTap={setSelectedNode}
+                unlockedFlashId={unlockedFlashId}
                 colors={colors}
               />
             )}
@@ -578,6 +660,7 @@ export default function SkillsScreen() {
             <NodeDetailModal
               node={selectedNode}
               tree={activeTree}
+              player={player}
               onClose={() => setSelectedNode(null)}
               onUnlock={handleUnlock}
               isPending={unlockNode.isPending}
@@ -595,12 +678,7 @@ export default function SkillsScreen() {
 const s = StyleSheet.create({
   root: { flex: 1 },
 
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
+  header: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12, borderBottomWidth: 1 },
   headerTitle: { fontSize: 22, fontFamily: "SpecialElite_400Regular", letterSpacing: 0.5 },
   headerSub:   { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
 
@@ -679,26 +757,16 @@ const tv = StyleSheet.create({
 });
 
 const d = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "#00000075",
-    justifyContent: "flex-end",
-  },
+  overlay: { flex: 1, backgroundColor: "#00000075", justifyContent: "flex-end" },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
     overflow: "hidden",
     paddingBottom: Platform.OS === "ios" ? 34 : 16,
   },
   accent: { height: 3 },
 
-  headerRow: {
-    flexDirection: "row", alignItems: "flex-start",
-    gap: 12, padding: 16, paddingBottom: 8,
-  },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 16, paddingBottom: 8 },
   badgeRow:  { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
   badge:     { borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   badgeText: { fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
@@ -734,8 +802,11 @@ const d = StyleSheet.create({
   section:      { paddingHorizontal: 16, marginBottom: 10 },
   sectionLabel: { fontSize: 9, fontFamily: "Inter_600SemiBold", letterSpacing: 1.5, marginBottom: 6 },
   chipRow:      { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip:         { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  chipText:     { fontSize: 10, fontFamily: "Inter_500Medium" },
+  chip: {
+    flexDirection: "row", alignItems: "center",
+    borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  chipText: { fontSize: 10, fontFamily: "Inter_500Medium" },
 
   prereqRow:  { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 2 },
   prereqName: { fontSize: 12, fontFamily: "Inter_400Regular" },
@@ -748,6 +819,6 @@ const d = StyleSheet.create({
   },
   unlockBtnText: { fontSize: 13, fontFamily: "Inter_700Bold" },
 
-  dismissRow: { alignItems: "center", paddingVertical: 12 },
+  dismissRow:  { alignItems: "center", paddingVertical: 12 },
   dismissText: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });
