@@ -39,7 +39,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
-  const [ssoLoading, setSsoLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState<"google" | "apple" | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -77,29 +77,32 @@ export default function SignInScreen() {
     }
   };
 
-  const handleGoogleSignIn = useCallback(async () => {
-    try {
-      setSsoLoading(true);
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: "oauth_google",
-        redirectUrl: AuthSession.makeRedirectUri(),
-      });
-      if (createdSessionId && setActive) {
-        await setActive({
-          session: createdSessionId,
-          navigate: async ({ decorateUrl }) => {
-            const url = decorateUrl("/");
-            if (url.startsWith("http")) return;
-            router.replace("/(tabs)" as never);
-          },
+  const handleSSOSignIn = useCallback(
+    async (strategy: "oauth_google" | "oauth_apple") => {
+      try {
+        setSsoLoading(strategy === "oauth_google" ? "google" : "apple");
+        const { createdSessionId, setActive } = await startSSOFlow({
+          strategy,
+          redirectUrl: AuthSession.makeRedirectUri(),
         });
+        if (createdSessionId && setActive) {
+          await setActive({
+            session: createdSessionId,
+            navigate: async ({ decorateUrl }) => {
+              const url = decorateUrl("/");
+              if (url.startsWith("http")) return;
+              router.replace("/(tabs)" as never);
+            },
+          });
+        }
+      } catch (err) {
+        console.error(`${strategy} SSO error:`, JSON.stringify(err, null, 2));
+      } finally {
+        setSsoLoading(null);
       }
-    } catch (err) {
-      console.error("Google SSO error:", JSON.stringify(err, null, 2));
-    } finally {
-      setSsoLoading(false);
-    }
-  }, [startSSOFlow, router]);
+    },
+    [startSSOFlow, router],
+  );
 
   if (signIn.status === "needs_client_trust") {
     return (
@@ -220,11 +223,11 @@ export default function SignInScreen() {
           </View>
 
           <Pressable
-            style={[styles.oauthBtn, ssoLoading && styles.btnDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={ssoLoading}
+            style={[styles.oauthBtn, ssoLoading !== null && styles.btnDisabled]}
+            onPress={() => handleSSOSignIn("oauth_google")}
+            disabled={ssoLoading !== null}
           >
-            {ssoLoading ? (
+            {ssoLoading === "google" ? (
               <ActivityIndicator color={COLORS.foreground} />
             ) : (
               <>
@@ -233,6 +236,27 @@ export default function SignInScreen() {
               </>
             )}
           </Pressable>
+
+          {Platform.OS === "ios" && (
+            <Pressable
+              style={[
+                styles.oauthBtn,
+                styles.appleBtn,
+                ssoLoading !== null && styles.btnDisabled,
+              ]}
+              onPress={() => handleSSOSignIn("oauth_apple")}
+              disabled={ssoLoading !== null}
+            >
+              {ssoLoading === "apple" ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.appleIcon}></Text>
+                  <Text style={styles.appleBtnText}>Continue with Apple</Text>
+                </>
+              )}
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -370,6 +394,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: COLORS.foreground,
+  },
+  appleBtn: {
+    backgroundColor: "#000",
+    borderColor: "#333",
+    marginTop: 10,
+  },
+  appleIcon: {
+    fontSize: 18,
+    color: "#fff",
+  },
+  appleBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
   footer: {
     flexDirection: "row",
