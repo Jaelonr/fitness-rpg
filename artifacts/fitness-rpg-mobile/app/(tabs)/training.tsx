@@ -3,6 +3,7 @@ import {
   useGetWorkoutSessions,
   useCreateWorkoutSession,
 } from "@workspace/api-client-react";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -31,6 +32,7 @@ export default function TrainingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: templates, isLoading: loadingTemplates } = useGetWorkoutTemplates();
   const { data: sessionsData, isLoading: loadingSessions } = useGetWorkoutSessions(
@@ -55,13 +57,14 @@ export default function TrainingScreen() {
             createSession.mutate(
               { data: { name: template.name, templateId: template.id } },
               {
-                onSuccess: () => {
+                onSuccess: (data: any) => {
                   queryClient.invalidateQueries({ queryKey: ["/api/workouts/sessions"] });
-                  Alert.alert(
-                    "⚔️ Battle Started",
-                    "Your session is active. Log your sets to earn XP.",
-                    [{ text: "OK" }]
-                  );
+                  const sessionId = data?.id ?? data?.session?.id;
+                  if (sessionId) {
+                    router.push(`/session/${sessionId}` as never);
+                  } else {
+                    Alert.alert("⚔️ Battle Started", "Your session is active.");
+                  }
                 },
                 onError: () => {
                   Alert.alert("Error", "Could not start session. Try again.");
@@ -119,7 +122,7 @@ export default function TrainingScreen() {
                   RECENT SESSIONS
                 </Text>
                 {recentSessions.map((s: any) => (
-                  <View
+                  <TouchableOpacity
                     key={s.id}
                     style={[
                       styles.sessionRow,
@@ -128,6 +131,8 @@ export default function TrainingScreen() {
                         borderColor: s.status === "active" ? colors.primary : colors.border,
                       },
                     ]}
+                    onPress={() => s.status === "active" && router.push(`/session/${s.id}` as never)}
+                    activeOpacity={s.status === "active" ? 0.7 : 1}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.sessionName, { color: colors.foreground }]}>
@@ -149,7 +154,7 @@ export default function TrainingScreen() {
                         </View>
                       )}
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
