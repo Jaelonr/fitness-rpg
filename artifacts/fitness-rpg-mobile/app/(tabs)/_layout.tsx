@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "scroll", selected: "scroll.fill" }} />
         <Label>Battle Log</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="quests">
+        <Icon sf={{ default: "map", selected: "map.fill" }} />
+        <Label>Quests</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
         <Label>Settings</Label>
@@ -98,6 +102,18 @@ function ClassicTabLayout() {
               <SymbolView name="scroll.fill" tintColor={color} size={22} />
             ) : (
               <Feather name="book-open" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="quests"
+        options={{
+          title: "Quests",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="map.fill" tintColor={color} size={22} />
+            ) : (
+              <Feather name="map" size={22} color={color} />
             ),
         }}
       />
