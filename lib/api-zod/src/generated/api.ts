@@ -2220,9 +2220,45 @@ export const GetCampaignStoryResponse = zod.object({
   "fitnessMapping": zod.string().nullish(),
   "xpReward": zod.number(),
   "goldReward": zod.number(),
-  "status": zod.enum(['active', 'completed', 'claimed', 'locked'])
+  "status": zod.enum(['active', 'completed', 'claimed', 'locked']),
+  "missionStartedAt": zod.string().nullish(),
+  "abandonedNarrative": zod.string().nullish()
 }))
-}))
+})),
+  "activeMission": zod.object({
+  "dbId": zod.number(),
+  "title": zod.string(),
+  "missionStartedAt": zod.string()
+}).nullish()
+})
+
+
+/**
+ * @summary Start a campaign commission as an active mission
+ */
+export const StartCampaignMissionBody = zod.object({
+  "dbId": zod.number()
+})
+
+export const StartCampaignMissionResponse = zod.object({
+  "success": zod.boolean(),
+  "questId": zod.number(),
+  "title": zod.string(),
+  "missionStartedAt": zod.string()
+})
+
+
+/**
+ * @summary Abandon an active campaign mission and receive a narrative consequence
+ */
+export const AbandonCampaignMissionBody = zod.object({
+  "dbId": zod.number()
+})
+
+export const AbandonCampaignMissionResponse = zod.object({
+  "severity": zod.enum(['slight', 'moderate', 'severe']),
+  "narrative": zod.string(),
+  "questTitle": zod.string()
 })
 
 

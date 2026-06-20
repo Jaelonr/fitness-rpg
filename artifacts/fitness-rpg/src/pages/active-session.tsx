@@ -52,6 +52,7 @@ interface CompletionData {
   prCount: number;
   totalSets: number;
   combatReplay: any;
+  missionClaimed?: { title: string; xpReward: number; goldReward: number } | null;
 }
 
 function CombatReplayModal({
@@ -258,6 +259,19 @@ function CombatReplayModal({
               </div>
             )}
 
+            {/* Mission reward */}
+            {data.missionClaimed && (
+              <div className="border border-yellow-400/40 bg-yellow-400/5 rounded-xl p-4 text-center space-y-1 animate-in fade-in duration-700">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-yellow-400/70 mb-2">⚔ Commission Sealed</p>
+                <p className="font-serif text-base font-bold text-yellow-400">{data.missionClaimed.title}</p>
+                <div className="flex justify-center gap-4 text-sm font-mono mt-1">
+                  <span className="text-cyan-400">+{data.missionClaimed.xpReward} XP</span>
+                  <span className="text-yellow-400">+{data.missionClaimed.goldReward} Gold</span>
+                </div>
+                <p className="text-[10px] text-foreground/50 italic mt-2">The Guild seal has been affixed. Well done.</p>
+              </div>
+            )}
+
             {/* Verdict */}
             <div className={cn(
               "text-center py-3 border border-white/10 bg-white/5 rounded-xl font-mono text-base font-bold tracking-wide",
@@ -417,6 +431,7 @@ export default function ActiveSession() {
           queryClient.invalidateQueries({ queryKey: ["/api/player"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
           queryClient.invalidateQueries({ queryKey: ["/api/battle-log"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/campaign/story"] });
           setCompletionData({
             xpEarned: data.xpEarned ?? 0,
             goldEarned: data.goldEarned ?? 0,
@@ -424,6 +439,7 @@ export default function ActiveSession() {
             prCount: session?.sets.filter((s: any) => s.isPr).length ?? 0,
             totalSets: session?.sets.length ?? 0,
             combatReplay: data.combatReplay ?? null,
+            missionClaimed: data.missionClaimed ?? null,
           });
           setViewMode("summary");
         },

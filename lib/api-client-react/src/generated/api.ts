@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AbandonCampaignMissionBody,
   Achievement,
   AnalyticsOverview,
   BossRaid,
@@ -64,6 +65,8 @@ import type {
   JoinGuildBody,
   LeaveGuild200,
   ListExercisesParams,
+  MissionAbandonResult,
+  MissionStartResult,
   MuscleGroupVolume,
   NutritionLog,
   NutritionLogInput,
@@ -96,6 +99,7 @@ import type {
   SkillNode,
   SkillTree,
   StartBossRaidBody,
+  StartCampaignMissionBody,
   StatAllocation,
   StoreItem,
   StoreSections,
@@ -6524,6 +6528,148 @@ export function useGetCampaignStory<TData = Awaited<ReturnType<typeof getCampaig
 
 
 
+
+export const getStartCampaignMissionUrl = () => {
+
+
+
+
+  return `/api/campaign/missions/start`
+}
+
+/**
+ * @summary Start a campaign commission as an active mission
+ */
+export const startCampaignMission = async (startCampaignMissionBody: StartCampaignMissionBody, options?: RequestInit): Promise<MissionStartResult> => {
+
+  return customFetch<MissionStartResult>(getStartCampaignMissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      startCampaignMissionBody,)
+  }
+);}
+
+
+
+
+export const getStartCampaignMissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCampaignMission>>, TError,{data: BodyType<StartCampaignMissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startCampaignMission>>, TError,{data: BodyType<StartCampaignMissionBody>}, TContext> => {
+
+const mutationKey = ['startCampaignMission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startCampaignMission>>, {data: BodyType<StartCampaignMissionBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  startCampaignMission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartCampaignMissionMutationResult = NonNullable<Awaited<ReturnType<typeof startCampaignMission>>>
+    export type StartCampaignMissionMutationBody = BodyType<StartCampaignMissionBody>
+    export type StartCampaignMissionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start a campaign commission as an active mission
+ */
+export const useStartCampaignMission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCampaignMission>>, TError,{data: BodyType<StartCampaignMissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startCampaignMission>>,
+        TError,
+        {data: BodyType<StartCampaignMissionBody>},
+        TContext
+      > => {
+      return useMutation(getStartCampaignMissionMutationOptions(options));
+    }
+
+export const getAbandonCampaignMissionUrl = () => {
+
+
+
+
+  return `/api/campaign/missions/abandon`
+}
+
+/**
+ * @summary Abandon an active campaign mission and receive a narrative consequence
+ */
+export const abandonCampaignMission = async (abandonCampaignMissionBody: AbandonCampaignMissionBody, options?: RequestInit): Promise<MissionAbandonResult> => {
+
+  return customFetch<MissionAbandonResult>(getAbandonCampaignMissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      abandonCampaignMissionBody,)
+  }
+);}
+
+
+
+
+export const getAbandonCampaignMissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abandonCampaignMission>>, TError,{data: BodyType<AbandonCampaignMissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof abandonCampaignMission>>, TError,{data: BodyType<AbandonCampaignMissionBody>}, TContext> => {
+
+const mutationKey = ['abandonCampaignMission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof abandonCampaignMission>>, {data: BodyType<AbandonCampaignMissionBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  abandonCampaignMission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AbandonCampaignMissionMutationResult = NonNullable<Awaited<ReturnType<typeof abandonCampaignMission>>>
+    export type AbandonCampaignMissionMutationBody = BodyType<AbandonCampaignMissionBody>
+    export type AbandonCampaignMissionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Abandon an active campaign mission and receive a narrative consequence
+ */
+export const useAbandonCampaignMission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abandonCampaignMission>>, TError,{data: BodyType<AbandonCampaignMissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof abandonCampaignMission>>,
+        TError,
+        {data: BodyType<AbandonCampaignMissionBody>},
+        TContext
+      > => {
+      return useMutation(getAbandonCampaignMissionMutationOptions(options));
+    }
 
 export const getGetGuildMasterCampaignQuestsUrl = () => {
 

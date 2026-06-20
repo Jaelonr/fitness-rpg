@@ -1442,6 +1442,28 @@ export interface GuildMasterMessageInput {
   conversationId: number;
 }
 
+export interface MissionStartResult {
+  success: boolean;
+  questId: number;
+  title: string;
+  missionStartedAt: string;
+}
+
+export type MissionAbandonResultSeverity = typeof MissionAbandonResultSeverity[keyof typeof MissionAbandonResultSeverity];
+
+
+export const MissionAbandonResultSeverity = {
+  slight: 'slight',
+  moderate: 'moderate',
+  severe: 'severe',
+} as const;
+
+export interface MissionAbandonResult {
+  severity: MissionAbandonResultSeverity;
+  narrative: string;
+  questTitle: string;
+}
+
 export type CampaignStoryQuestStatus = typeof CampaignStoryQuestStatus[keyof typeof CampaignStoryQuestStatus];
 
 
@@ -1463,6 +1485,8 @@ export interface CampaignStoryQuest {
   xpReward: number;
   goldReward: number;
   status: CampaignStoryQuestStatus;
+  missionStartedAt?: string | null;
+  abandonedNarrative?: string | null;
 }
 
 export type CampaignStoryChapterStatus = typeof CampaignStoryChapterStatus[keyof typeof CampaignStoryChapterStatus];
@@ -1481,11 +1505,18 @@ export interface CampaignStoryChapter {
   quests: CampaignStoryQuest[];
 }
 
+export type CampaignStoryActiveMission = {
+  dbId: number;
+  title: string;
+  missionStartedAt: string;
+} | null;
+
 export interface CampaignStory {
   currentChapter: number;
   currentQuestTitle?: string | null;
   totalChapters: number;
   chapters: CampaignStoryChapter[];
+  activeMission?: CampaignStoryActiveMission;
 }
 
 export type CampaignQuestStatusStatus = typeof CampaignQuestStatusStatus[keyof typeof CampaignQuestStatusStatus];
@@ -1999,6 +2030,14 @@ export type UnsubscribePushBody = {
 
 export type UnsubscribePush200 = {
   success?: boolean;
+};
+
+export type StartCampaignMissionBody = {
+  dbId: number;
+};
+
+export type AbandonCampaignMissionBody = {
+  dbId: number;
 };
 
 export type GetBattleLogParams = {

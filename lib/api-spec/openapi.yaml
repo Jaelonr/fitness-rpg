@@ -1633,6 +1633,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/CampaignStory"
 
+  /campaign/missions/start:
+    post:
+      operationId: startCampaignMission
+      tags: [quests]
+      summary: Start a campaign commission as an active mission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dbId]
+              properties:
+                dbId:
+                  type: integer
+      responses:
+        "200":
+          description: Mission started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissionStartResult"
+
+  /campaign/missions/abandon:
+    post:
+      operationId: abandonCampaignMission
+      tags: [quests]
+      summary: Abandon an active campaign mission and receive a narrative consequence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dbId]
+              properties:
+                dbId:
+                  type: integer
+      responses:
+        "200":
+          description: Mission abandoned with narrative consequence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissionAbandonResult"
+
   /guild-master/campaign-quests:
     get:
       operationId: getGuildMasterCampaignQuests
@@ -3434,6 +3480,31 @@ components:
         conversationId:
           type: integer
 
+    MissionStartResult:
+      type: object
+      required: [success, questId, title, missionStartedAt]
+      properties:
+        success:
+          type: boolean
+        questId:
+          type: integer
+        title:
+          type: string
+        missionStartedAt:
+          type: string
+
+    MissionAbandonResult:
+      type: object
+      required: [severity, narrative, questTitle]
+      properties:
+        severity:
+          type: string
+          enum: [slight, moderate, severe]
+        narrative:
+          type: string
+        questTitle:
+          type: string
+
     CampaignStoryQuest:
       type: object
       required: [campaignId, title, description, xpReward, goldReward, status]
@@ -3463,6 +3534,12 @@ components:
         status:
           type: string
           enum: [active, completed, claimed, locked]
+        missionStartedAt:
+          type: string
+          nullable: true
+        abandonedNarrative:
+          type: string
+          nullable: true
 
     CampaignStoryChapter:
       type: object
@@ -3495,6 +3572,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CampaignStoryChapter"
+        activeMission:
+          nullable: true
+          type: object
+          required: [dbId, title, missionStartedAt]
+          properties:
+            dbId:
+              type: integer
+            title:
+              type: string
+            missionStartedAt:
+              type: string
 
     CampaignQuestStatus:
       type: object
