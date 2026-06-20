@@ -192,6 +192,7 @@ function GuildMasterDialog({ open, onOpenChange, initialReport }: {
         .join("");
       if (answer) setLocalLines((items) => [...items, { id: `assistant-${Date.now()}`, role: "assistant", content: answer }]);
       await refetch();
+      setLocalLines([]);
     } catch {
       toast({ title: "Aldric is unavailable", description: "The Guild's connection was interrupted. Try again.", variant: "destructive" });
     } finally {
