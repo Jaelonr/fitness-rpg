@@ -40,6 +40,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d6766285-92e7-40fe-b578-f77726e19636"
+      }
+    },
+    "owner": "jaelonr"
   }
 }
