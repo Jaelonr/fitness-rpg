@@ -8,6 +8,7 @@
     "db:migrate": "pnpm --filter @workspace/db run migrate",
     "deploy:build": "pnpm run typecheck && pnpm --filter @workspace/fitness-rpg run build && pnpm --filter @workspace/api-server run build",
     "deploy:migrate": "pnpm --filter @workspace/db run migrate",
+    "deploy:run": "pnpm run deploy:migrate && pnpm run deploy:start",
     "deploy:start": "pnpm --filter @workspace/api-server run start",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"

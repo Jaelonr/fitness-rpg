@@ -8,8 +8,9 @@ A fitness RPG where real training, nutrition, recovery, and consistency become c
 - `pnpm run typecheck` - full typecheck across all packages
 - `pnpm run build` - typecheck and build all packages
 - `pnpm run deploy:build` - production-focused web/API build for Replit
-- `pnpm run deploy:start` - start the production API, which also serves the built web app
 - `pnpm run deploy:migrate` - run Drizzle migrations against `DATABASE_URL`
+- `pnpm run deploy:start` - start the production API, which also serves the built web app
+- `pnpm run deploy:run` - run migrations first, then start production; this is what `.replit` uses
 - `pnpm --filter @workspace/api-spec run codegen` - regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` - push DB schema changes for dev only
 - Required env: `DATABASE_URL` - Postgres connection string
@@ -21,8 +22,8 @@ Use a single Replit deployment/domain for the web app and API. The Express API s
 1. Back up the existing Replit database before changing migrations or production secrets.
 2. Add the values from `.env.example` to Replit Secrets. Do not commit real secret values.
 3. Keep production bypasses disabled: `DEV_MOCK_API=false`, `DEV_AUTH_BYPASS=false`, and `VITE_DEV_AUTH_BYPASS=false`.
-4. Run `pnpm run deploy:migrate` against the production `DATABASE_URL`.
-5. Deploy with the `.replit` production build/run commands.
+4. Deploy with the `.replit` production build/run commands. The run command executes `pnpm run deploy:run`, which applies Drizzle migrations before starting the API.
+5. If Hall, Chronicle, or Character fail to load after a pull, manually run `pnpm run deploy:migrate` once and redeploy; those pages depend on the newer Guild Hall, Chronicle, item discovery, and paper-doll gear tables.
 6. In Clerk/Replit Auth, allow the deployed domain for sign-in/sign-up redirects and enable Google as a provider.
 7. For Expo/mobile testing, set `EXPO_PUBLIC_API_BASE_URL` to the deployed `https://...` origin.
 
@@ -69,5 +70,5 @@ Core destinations are Guild Hall, Training, Nutrition, Chronicle, and Character.
 
 - If `DEV_MOCK_API=true`, API calls can be handled by mock routes and may not persist to Postgres.
 - If `DATABASE_URL` is missing outside mock mode, the API/database layer should fail rather than silently use fake storage.
-- Run migrations before expecting production saves to work.
+- Hall, Chronicle, and Character depend on the latest migrations. If these tabs fail in Replit while older pages load, check the Replit logs for missing relation/table errors and run `pnpm run deploy:migrate`.
 - The web app needs `VITE_CLERK_PUBLISHABLE_KEY` and the API needs `CLERK_SECRET_KEY` for authenticated production routes.
