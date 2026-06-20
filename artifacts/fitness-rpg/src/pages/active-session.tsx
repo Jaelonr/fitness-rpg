@@ -227,6 +227,37 @@ function CombatReplayModal({
               );
             })()}
 
+            {/* Gear drop */}
+            {replay?.gearDrop && (() => {
+              const r = replay.gearDrop as { name: string; rarity: string; slot: string };
+              const rarityColors: Record<string, string> = {
+                common: "text-gray-300 border-gray-400/40",
+                uncommon: "text-green-400 border-green-400/40",
+                rare: "text-blue-400 border-blue-400/40",
+                epic: "text-purple-400 border-purple-400/40",
+                legendary: "text-yellow-400 border-yellow-400/50",
+              };
+              const cls = rarityColors[r.rarity] ?? rarityColors.common;
+              return (
+                <div className={cn("border rounded-xl p-3.5 bg-white/5 space-y-1", cls)}>
+                  <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">⚙ Gear Drop</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn("text-sm font-bold font-serif", cls.split(" ")[0])}>{r.name}</span>
+                    <span className={cn("text-[10px] font-mono uppercase border px-2 py-0.5 rounded", cls)}>{r.rarity}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground capitalize">{r.slot.replace(/_/g, " ")}</p>
+                </div>
+              );
+            })()}
+
+            {/* Raid impact */}
+            {replay?.raidImpact && (
+              <div className="border border-orange-400/30 bg-orange-400/10 rounded-xl p-3.5">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-orange-400 mb-1.5">⚔ Raid Progress</p>
+                <p className="text-sm text-foreground/90 leading-relaxed">{replay.raidImpact}</p>
+              </div>
+            )}
+
             {/* Verdict */}
             <div className={cn(
               "text-center py-3 border border-white/10 bg-white/5 rounded-xl font-mono text-base font-bold tracking-wide",
@@ -234,6 +265,14 @@ function CombatReplayModal({
             )}>
               {verdictMeta.icon} {replay?.verdict ?? "Training Complete"}
             </div>
+
+            {/* Narrative consequence */}
+            {replay?.narrativeConsequence && (
+              <div className="border border-cyan-400/20 bg-cyan-400/5 rounded-xl p-3.5">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-cyan-400/70 mb-1.5">↠ Consequence</p>
+                <p className="text-xs text-foreground/80 leading-relaxed italic">{replay.narrativeConsequence}</p>
+              </div>
+            )}
 
             <Button
               className="w-full py-6 text-base font-bold bg-cyan-500/20 border border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/30 font-mono tracking-widest"

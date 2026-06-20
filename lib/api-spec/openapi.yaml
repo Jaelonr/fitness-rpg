@@ -3495,6 +3495,18 @@ components:
             type: string
         raidImpact:
           type: ["string", "null"]
+        gearDrop:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            rarity:
+              type: string
+            slot:
+              type: string
+        narrativeConsequence:
+          type: ["string", "null"]
         narrativeIntensity:
           type: string
         createdAt:

@@ -2242,6 +2242,12 @@ export const GetBattleLogResponseItem = zod.object({
   "elementalAffinity": zod.string().optional(),
   "narrativeModifiers": zod.array(zod.string()).optional(),
   "raidImpact": zod.string().nullish(),
+  "gearDrop": zod.object({
+  "name": zod.string().optional(),
+  "rarity": zod.string().optional(),
+  "slot": zod.string().optional()
+}).nullish(),
+  "narrativeConsequence": zod.string().nullish(),
   "narrativeIntensity": zod.string(),
   "createdAt": zod.string()
 })
@@ -2387,6 +2393,12 @@ export const GetChronicleSummaryResponse = zod.object({
   "elementalAffinity": zod.string().optional(),
   "narrativeModifiers": zod.array(zod.string()).optional(),
   "raidImpact": zod.string().nullish(),
+  "gearDrop": zod.object({
+  "name": zod.string().optional(),
+  "rarity": zod.string().optional(),
+  "slot": zod.string().optional()
+}).nullish(),
+  "narrativeConsequence": zod.string().nullish(),
   "narrativeIntensity": zod.string(),
   "createdAt": zod.string()
 })).optional(),

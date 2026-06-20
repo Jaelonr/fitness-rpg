@@ -1469,6 +1469,12 @@ export interface CombatEvent {
 
 export type CombatReplayEntryStyleScores = {[key: string]: number};
 
+export type CombatReplayEntryGearDrop = {
+  name?: string;
+  rarity?: string;
+  slot?: string;
+} | null;
+
 export interface CombatReplayEntry {
   id: number;
   playerId?: number;
@@ -1491,6 +1497,9 @@ export interface CombatReplayEntry {
   narrativeModifiers?: string[];
   /** @nullable */
   raidImpact?: string | null;
+  gearDrop?: CombatReplayEntryGearDrop;
+  /** @nullable */
+  narrativeConsequence?: string | null;
   narrativeIntensity: string;
   createdAt: string;
 }
