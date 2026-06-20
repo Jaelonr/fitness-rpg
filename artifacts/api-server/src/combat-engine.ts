@@ -33,6 +33,8 @@ export interface CombatInput {
   baseClass: string;
   playerName: string;
   narrativeIntensity: NarrativeIntensity;
+  elementalAffinity?: string;
+  narrativeModifiers?: string[];
 }
 
 export interface CombatEvent {
@@ -393,6 +395,17 @@ export function generateCombatReplay(input: CombatInput): CombatReplayData {
       dramatic: `As the enemy dissolved into shadow, a single item remained. The ${input.gearDrop.name} (${input.gearDrop.rarity.toUpperCase()}) — forged in the dungeon's core — bound itself to you.`,
     };
     events.push({ type: "gear", text: gearEvents[intensity] });
+  }
+
+  if (input.elementalAffinity && input.elementalAffinity !== "physical") {
+    const affinity = input.elementalAffinity.charAt(0).toUpperCase() + input.elementalAffinity.slice(1);
+    const modifier = input.narrativeModifiers?.[0];
+    events.push({
+      type: "special",
+      text: modifier
+        ? `${affinity} mana answered your equipped relic: ${modifier}`
+        : `${affinity} mana gathered around your technique, changing how the enemy received the blow.`,
+    });
   }
 
   let raidImpact: string | null = null;

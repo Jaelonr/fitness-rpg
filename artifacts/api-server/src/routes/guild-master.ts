@@ -7,6 +7,7 @@ import {
   bossRaidsTable, playerStyleIdentityTable,
   personalRecordsTable, rpgGearTable,
   wearableEntriesTable, guildReportsTable,
+  guildMasterMemoriesTable, worldEventsTable,
 } from "@workspace/db";
 import { CAMPAIGN_QUESTS, getQuestById } from "../data/campaign-quests";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -17,6 +18,46 @@ const router = Router();
 const GUILD_MASTER_CONTEXT = "guild_master";
 const DAILY_MESSAGE_LIMIT = 5;
 
+function currentWorldPressure(context: Awaited<ReturnType<typeof buildPlayerContext>>) {
+  const openThreats = context.worldEvents.filter((event) => event.status === "active" || event.status === "unresolved").length;
+  if (context.activeRaidCount > 0 || openThreats > 0) return "high";
+  if (context.completedQuestCount >= 40) return "low";
+  return "guarded";
+}
+
+function buildFallbackGuildMasterReply(content: string, context: Awaited<ReturnType<typeof buildPlayerContext>>) {
+  const question = content.toLowerCase();
+  const pressure = currentWorldPressure(context);
+  const latestMemory = context.memories[0]?.summary;
+  const latestWorldEvent = context.worldEvents[0];
+
+  if (question.includes("system")) {
+    const memory = latestMemory ? `I have not forgotten this: ${latestMemory}` : "The Hall has only begun to learn your pattern.";
+    return `That word is yours, Hunter, not a truth the Guild can swear to. I know you were summoned, and I know the Gates and omens around you do not behave like ordinary magic. I will not pretend to know who called you here, what force marked you, or whether any person stood behind it. ${memory}\n\nWhat the Guild can name is simpler: you are here, Aethoria is under pressure, and your recorded actions are changing what you can survive. If you tell me what this "System" shows you, I will weigh it against the Guild's ledgers, but I will not dress ignorance as certainty.`;
+  }
+
+  if (question.includes("aethoria") || question.includes("world") || question.includes("sovereign") || question.includes("gate") || question.includes("danger")) {
+    const threat = latestWorldEvent
+      ? `${latestWorldEvent.title}: ${latestWorldEvent.description}`
+      : "No lasting catastrophe is written in your ledger today, but the Sovereign remains the name our records give to the force that feeds on stagnation.";
+    const raid = context.activeRaidCount > 0
+      ? `${context.activeRaidCount} active gate incursion is on the board.`
+      : "No active gate incursion is marked for you right now.";
+    const memory = latestMemory ? `I have not forgotten this: ${latestMemory}` : "The Hall has only begun to learn your pattern.";
+    return `Here is the state of Aethoria as the Guild can honestly name it. ${threat} ${raid} ${memory}\n\nGuild pressure is ${pressure}. That is not an exact measure, only what our scouts, healers, ledgers, and Gate reports suggest. I can answer your questions, but if danger rises, I will steer us back to the next duty quickly. The Sovereign is not beaten by talk. It is beaten by repeated, recorded action.`;
+  }
+
+  if (question.includes("miss") || question.includes("failed") || question.includes("behind")) {
+    return "Then we name it plainly and continue. A missed duty is not a ruined legend unless you let it become your pattern. Choose the smallest safe task still within reach, complete it, and record it before the day closes.";
+  }
+
+  if (question.includes("pain") || question.includes("injur")) {
+    return "Pain changes the order of the day. Do not train through alarming symptoms or sharp worsening pain. Reduce the task to recovery, mobility, walking, hydration, and food you can actually keep consistent. If the pain is severe, unusual, or frightening, speak with a qualified professional.";
+  }
+
+  return "The Guild's scrying archive is quiet, so I will speak plainly. Ask me about Aethoria, the Gates, your record, your training, your food, your recovery, or the next duty, and I will answer from the ledger we have. For now: complete the next safe action within reach, record it honestly, and return with facts.";
+}
+
 // ── Context Builder ───────────────────────────────────────────────────────────
 
 async function buildPlayerContext(playerId: number) {
@@ -24,7 +65,7 @@ async function buildPlayerContext(playerId: number) {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const cutoffDate = sevenDaysAgo.toISOString().split("T")[0];
 
-  const [recentSessions, recentNutrition, allQuestStatuses, activeRaids, styleRows, recentPRs, equippedGear, recentWearables] = await Promise.all([
+  const [recentSessions, recentNutrition, allQuestStatuses, activeRaids, styleRows, recentPRs, equippedGear, recentWearables, memories, worldEvents] = await Promise.all([
     db.select({
       name: workoutSessionsTable.name,
       completedAt: workoutSessionsTable.completedAt,
@@ -72,6 +113,16 @@ async function buildPlayerContext(playerId: number) {
       .where(and(eq(wearableEntriesTable.playerId, playerId), gte(wearableEntriesTable.date, cutoffDate)))
       .orderBy(desc(wearableEntriesTable.date))
       .limit(7),
+
+    db.select().from(guildMasterMemoriesTable)
+      .where(eq(guildMasterMemoriesTable.playerId, playerId))
+      .orderBy(desc(guildMasterMemoriesTable.importance), desc(guildMasterMemoriesTable.occurredAt))
+      .limit(8),
+
+    db.select().from(worldEventsTable)
+      .where(eq(worldEventsTable.playerId, playerId))
+      .orderBy(desc(worldEventsTable.occurredAt))
+      .limit(5),
   ]);
 
   const activeQuestCount = allQuestStatuses.filter(q => q.status === "active" || q.status === "completed").length;
@@ -79,7 +130,7 @@ async function buildPlayerContext(playerId: number) {
   const activeRaidCount = activeRaids.filter(r => r.status === "active").length;
   const styleIdentity = styleRows[0] ?? null;
 
-  return { recentSessions, recentNutrition, activeQuestCount, completedQuestCount, activeRaidCount, activeRaids, styleIdentity, recentPRs, equippedGear, recentWearables };
+  return { recentSessions, recentNutrition, activeQuestCount, completedQuestCount, activeRaidCount, activeRaids, styleIdentity, recentPRs, equippedGear, recentWearables, memories, worldEvents };
 }
 
 // ── System Prompt ─────────────────────────────────────────────────────────────
@@ -159,6 +210,15 @@ function buildSystemPrompt(
       }).join("\n")
     : "  • No wearable data synced.";
 
+  const memorySection = context.memories.length > 0
+    ? context.memories.map(memory => `  • [${memory.kind}] ${memory.summary}`).join("\n")
+    : "  • No durable personal memories recorded yet.";
+
+  const worldSection = context.worldEvents.length > 0
+    ? context.worldEvents.map(event => `  • ${event.title}: ${event.description} (${event.status})`).join("\n")
+    : "  • No lasting world events recorded.";
+
+  const worldPressure = currentWorldPressure(context);
   const modeInstructions: Record<string, string> = {
     technical: `NARRATIVE MODE — TECHNICAL
 Reference real fitness data and numbers directly. Say exactly what the record shows.
@@ -185,7 +245,19 @@ Translation rules:
 Stay completely in-world. The logbook holds guild records, not fitness data.`,
   };
 
-  return `You are Grandmaster Aldric, Guild Master of the Hunter's Guild.
+  return `You are Grandmaster Aldric, Guild Master of the Hunter's Guild in Aethoria.
+
+APP AND WORLD:
+- The app is Ascension Quest: Legends of Aethoria.
+- The Hunter was summoned into Aethoria. Aldric knows the Hunter is not of this world, but he does not know who or what caused the summoning.
+- The Hunter may report seeing a mysterious "System." Aldric does not know that term as verified Guild truth and must not explain its origin, rules, interface, danger readings, or intent as fact.
+- Aldric may discuss what the Guild has observed: unusual marks, Gate pressure, omens, the Hunter's recorded growth, and the practical effects of completed duties.
+- Aethoria is threatened by a great enemy known in current guild records as the Sovereign, an intelligence tied to stagnation, complacency, and the refusal to grow.
+- Gates are ruptures where hostile forces, trials, and corrupted places spill into the world.
+- The Guild Hall is a living or semi-living magical institution bound to Aldric's past. It is not merely a building or shop.
+- Real training, nutrition, recovery, and discipline are how the Hunter becomes stronger in both worlds.
+- The Hunter never simply chooses power. They earn identity, class, rank, titles, and legend through the record.
+- Current world pressure: ${worldPressure}.
 
 CHARACTER:
 - Age: mid-60s. Silver hair, battle-scarred face, calm bearing that commands the room.
@@ -194,6 +266,16 @@ CHARACTER:
 - Backstory: former S-Rank hunter. Retired after a gate incident that cost him two fingers on his left hand. He knows what pushing too far costs — and what stopping too soon costs more.
 - Never breaks character. The guild hall, gates, ranks, and quests are real to him.
 - He oversees the entire guild: merchants, scholars, healers, expedition leaders. He is busy — but he makes time.
+
+DIRECT QUESTIONS:
+- You may answer direct questions about Aethoria, Gates, the Sovereign, the Guild, Hall offerings, campaign state, the Hunter's record, training, nutrition, recovery, gear, titles, and what should be done next.
+- If asked about the System, say Aldric does not know it as confirmed Guild truth. He may cautiously discuss the Hunter's summoning, the Hunter's own reports, and observable effects, but he must not claim to know the System's maker, mechanics, measurements, or intent.
+- If asked about exact world danger, say the Hunter may see things the Guild cannot. Aldric can only speak from Guild reports: Gate pressure, active threats, losses, scout reports, omens, and readiness.
+- Answer like a knowledgeable in-world mentor, not a menu or generic chatbot.
+- When the question asks about facts outside the record, clearly separate what the Guild knows from what Aldric suspects.
+- If the Hunter asks idle small talk while world pressure is high, be brief and redirect toward the next meaningful duty.
+- If world pressure is low or the Sovereign has fallen, you may allow more reflective conversation and personal warmth.
+- Do not invent personal memories, destroyed locations, named allies, injuries, victories, or lore revelations that are not in the record.
 
 HUMILITY (use occasionally, not always):
 - "This is the course I would choose, Hunter — but the decision is yours."
@@ -227,6 +309,12 @@ ${gearSection}
 VITALS & RECOVERY (wearable data):
 ${wearableSection}
 
+ALDRIC'S DURABLE MEMORIES:
+${memorySection}
+
+LASTING WORLD STATE:
+${worldSection}
+
 ${modeInstructions[narrativeMode] ?? modeInstructions.balanced}
 
 RESPONSE GUIDELINES:
@@ -235,7 +323,12 @@ RESPONSE GUIDELINES:
 3. Give specific, actionable advice — never just "believe in yourself."
 4. Reference their actual record naturally, as if reading from the logbook.
 5. When they haven't trained: state it directly but without judgment.
-6. Celebrate genuine progress — results matter, not just attendance.`;
+6. Celebrate genuine progress — results matter, not just attendance.
+7. Never invent an accomplishment, injury, failure, measurement, person, or location that is not present in the record.
+8. Do not diagnose, prescribe treatment, or tell the Hunter to ignore pain. For chest pain, fainting, severe breathing difficulty, signs of serious injury, or alarming symptoms, step out of fantasy language and advise urgent professional medical care.
+9. When recovery data is poor, recommend reducing intensity, rest, hydration, nutrition, or professional guidance without using shame.
+10. Treat small missed duties with measured disappointment. Treat recorded serious world losses with gravity proportional to the record; never manufacture a catastrophe for dramatic effect.
+11. For broad world-state questions, summarize: current threat, known recent world events, active incursions, campaign standing, and the Hunter's readiness based only on the provided records.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -350,6 +443,19 @@ router.post("/guild-master/messages", async (req, res) => {
       narrativeMode
     );
 
+    if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY || !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      const fallback = buildFallbackGuildMasterReply(content, context);
+      await db.insert(messages).values({ conversationId, role: "assistant", content: fallback });
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+      res.write(`data: ${JSON.stringify({ content: fallback, fallback: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, fallback: true })}\n\n`);
+      res.end();
+      return;
+    }
+
     const openaiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
       ...history.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -388,9 +494,11 @@ router.post("/guild-master/messages", async (req, res) => {
   } catch (err) {
     req.log.error(err, "guild-master message error");
     if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to process message" });
+      res.status(503).json({ error: "The Guildmaster is temporarily unavailable" });
     } else {
-      res.write(`data: ${JSON.stringify({ error: "Stream failed" })}\n\n`);
+      const fallback = "The Guild's scrying archive is quiet, so I will speak plainly: ask about Aethoria, the Gates, your record, or the next duty, and I will answer from the ledger we have. Complete the next safe action within reach, record it honestly, and do not train through alarming pain.";
+      res.write(`data: ${JSON.stringify({ content: fallback, fallback: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, fallback: true })}\n\n`);
       res.end();
     }
   }
@@ -415,7 +523,7 @@ router.get("/guild-master/monthly-report", async (req, res) => {
       .where(and(eq(guildReportsTable.playerId, player.id), eq(guildReportsTable.month, month), eq(guildReportsTable.year, year)))
       .limit(1);
     if (cached) {
-      res.json({ reportText: cached.reportText, month, year, generatedAt: cached.generatedAt.toISOString(), cached: true });
+      res.json({ reportText: cached.reportText, text: cached.reportText, month, year, generatedAt: cached.generatedAt.toISOString(), cached: true });
       return;
     }
 
@@ -510,10 +618,38 @@ Stay fully in-world. Translate fitness metrics into guild/battle language. This 
       reportText,
     });
 
-    res.json({ reportText, month, year, generatedAt: new Date().toISOString(), cached: false });
+    res.json({ reportText, text: reportText, month, year, generatedAt: new Date().toISOString(), cached: false });
   } catch (err) {
     req.log.error(err, "monthly report error");
     res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// ── GET /guild-master/campaign-quests ─────────────────────────────────────────
+
+router.get("/guild-master/campaign-quests", async (req, res) => {
+  try {
+    const { player } = await getOrCreatePlayer(req.userId!);
+    const rows = await db.select().from(questsTable)
+      .where(and(eq(questsTable.playerId, player.id), eq(questsTable.type, "main")));
+
+    res.json(rows.flatMap((quest) => {
+      const match = quest.title.match(/^\[Campaign\]\s+Q0*(\d+):/);
+      if (!match) return [];
+
+      return [{
+        campaignId: Number(match[1]),
+        questId: quest.id,
+        status: quest.status,
+        title: quest.title,
+        completedAt: quest.completedAt?.toISOString() ?? null,
+        claimedAt: quest.claimedAt?.toISOString() ?? null,
+        createdAt: quest.createdAt.toISOString(),
+      }];
+    }));
+  } catch (err) {
+    req.log.error(err, "campaign quest status error");
+    res.status(500).json({ error: "Failed to load campaign quest status" });
   }
 });
 

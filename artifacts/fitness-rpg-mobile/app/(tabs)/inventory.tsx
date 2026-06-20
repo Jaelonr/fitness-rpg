@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
+  Image,
   StyleSheet,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  customFetch,
   useGetArmory,
   useEquipGear,
   useGetInventory,
@@ -58,6 +60,131 @@ const STYLE_COLORS: Record<string, { text: string; border: string; bg: string }>
 
 function rarityOf(r?: string) {
   return RARITY_COLORS[r ?? "common"] ?? RARITY_COLORS.common;
+}
+
+function itemDisplayName(item?: RpgGear | null) {
+  return item?.displayName ?? item?.name ?? "Empty";
+}
+
+type PaperDollSelection = { slot: string; label: string; aliases: string[] };
+
+const PAPER_DOLL_SLOTS: Array<{ slot: string; label: string; aliases: string[] }> = [
+  { slot: "head", label: "Head", aliases: ["head", "helmet", "helm", "hood", "circlet"] },
+  { slot: "neck", label: "Neck", aliases: ["neck", "necklace", "amulet", "relic"] },
+  { slot: "shoulders", label: "Shoulders", aliases: ["shoulders", "pauldrons", "mantle"] },
+  { slot: "cloak", label: "Cloak", aliases: ["cloak", "cape", "back"] },
+  { slot: "chest", label: "Chest", aliases: ["chest", "armor", "robe", "body"] },
+  { slot: "arms", label: "Arms", aliases: ["arms", "bracers", "vambraces"] },
+  { slot: "hands", label: "Hands", aliases: ["hands", "gloves", "gloves_wraps", "wraps", "gauntlets"] },
+  { slot: "waist", label: "Waist", aliases: ["waist", "belt", "sash"] },
+  { slot: "legs", label: "Legs", aliases: ["legs", "pants", "greaves"] },
+  { slot: "feet", label: "Feet", aliases: ["feet", "boots"] },
+  { slot: "ring_left", label: "Ring Left", aliases: ["ring_left", "ring"] },
+  { slot: "ring_right", label: "Ring Right", aliases: ["ring_right", "ring"] },
+  { slot: "weapon", label: "Weapon", aliases: ["weapon", "main_hand", "mainhand"] },
+  { slot: "offhand", label: "Off Hand", aliases: ["offhand", "off_hand", "shield"] },
+  { slot: "relic", label: "Relic", aliases: ["relic"] },
+  { slot: "title", label: "Title", aliases: ["title", "banner"] },
+  { slot: "aura_cosmetic", label: "Aura", aliases: ["aura_cosmetic", "aura", "aura_effect", "cosmetic"] },
+];
+
+function displaySlot(slot: string) {
+  if (slot === "helmet") return "head";
+  if (slot === "chest") return "armor";
+  if (slot === "back") return "cloak";
+  if (slot === "main_hand") return "weapon";
+  if (slot === "off_hand") return "offhand";
+  if (slot === "aura_effect") return "aura_cosmetic";
+  if (slot === "banner") return "title";
+  if (slot === "necklace") return "neck";
+  if (slot === "gloves") return "gloves_wraps";
+  return slot;
+}
+
+function gearMatchesPaperSlot(gear: RpgGear, selection: PaperDollSelection) {
+  return selection.aliases.includes(gear.slot) || selection.aliases.includes(displaySlot(gear.slot));
+}
+
+function PaperDollPreview({
+  gear,
+  colors,
+  selectedSlot,
+  onSelectSlot,
+}: {
+  gear: RpgGear[];
+  colors: ReturnType<typeof useColors>;
+  selectedSlot: string | null;
+  onSelectSlot: (slot: PaperDollSelection) => void;
+}) {
+  const equippedBySlot = new Map<string, RpgGear>();
+  for (const piece of gear.filter((candidate) => candidate.equipped)) {
+    equippedBySlot.set(piece.slot, piece);
+    equippedBySlot.set(displaySlot(piece.slot), piece);
+  }
+  const slots = PAPER_DOLL_SLOTS.map((slot) => ({
+    ...slot,
+    item: slot.aliases.map((alias) => equippedBySlot.get(alias)).find(Boolean) ?? null,
+  }));
+  const equippedCount = slots.filter((slot) => slot.item).length;
+  const affinity = slots.find((slot) => slot.item?.elementalAffinity && slot.item.elementalAffinity !== "physical")?.item?.elementalAffinity ?? "physical";
+
+  return (
+    <View style={[s.paperDollCard, { backgroundColor: colors.card, borderColor: "#7b552d" }]}>
+      <View style={s.paperDollHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.paperDollTitle}>Equipment</Text>
+          <Text style={[s.paperDollSub, { color: colors.mutedForeground }]}>
+            Neutral vessel. No face creator. The gear tells the story.
+          </Text>
+        </View>
+        <View style={s.equippedCounter}>
+          <Text style={s.counterLabel}>EQUIPPED</Text>
+          <Text style={s.counterValue}>{equippedCount}/{slots.length}</Text>
+        </View>
+      </View>
+
+      <View style={s.paperDollImageFrame}>
+        <Image
+          source={require("../../assets/aethoria-equipment-paper-doll.png")}
+          style={s.paperDollImage}
+          resizeMode="contain"
+        />
+        <View style={s.affinityPill}>
+          <Text style={s.affinityLabel}>Affinity</Text>
+          <Text style={s.affinityValue}>{affinity}</Text>
+        </View>
+      </View>
+
+      <View style={s.paperSlotGrid}>
+        {slots.map((slot) => {
+          const r = rarityOf(slot.item?.rarity);
+          const active = selectedSlot === slot.slot;
+          const displayName = itemDisplayName(slot.item);
+          const iconKey = slot.item?.iconKey ?? slot.item?.slot ?? slot.slot;
+          return (
+            <TouchableOpacity
+              key={slot.slot}
+              onPress={() => onSelectSlot(slot)}
+              style={[
+                s.paperSlot,
+                { borderColor: slot.item ? r.border : colors.border, backgroundColor: slot.item ? r.bg : "#0c0b0940" },
+                active && { borderColor: "#d9ad63", backgroundColor: "#21170f" },
+              ]}
+              activeOpacity={0.75}
+            >
+              <Text style={[s.paperSlotLabel, { color: colors.mutedForeground }]}>{slot.label}</Text>
+              <Text style={[s.paperSlotGlyph, { color: slot.item ? r.text : colors.mutedForeground }]}>
+                {SLOT_EMOJIS[iconKey] ?? "□"}
+              </Text>
+              <Text style={[s.paperSlotItem, { color: slot.item ? r.text : colors.mutedForeground }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 // ── Sub-tab bar ───────────────────────────────────────────────────────────────
@@ -111,6 +238,9 @@ function GearCard({ gear, colors }: { gear: RpgGear; colors: ReturnType<typeof u
   const r = rarityOf(gear.rarity);
   const equipGear = useEquipGear();
   const queryClient = useQueryClient();
+  const displayName = gear.displayName ?? gear.name;
+  const lore = gear.loreText ?? gear.flavorText;
+  const affinity = gear.affinity ?? gear.elementalAffinity;
 
   const statEntries = Object.entries(gear.statBonuses ?? {}).filter(([, v]) => (v ?? 0) > 0);
 
@@ -142,7 +272,7 @@ function GearCard({ gear, colors }: { gear: RpgGear; colors: ReturnType<typeof u
           <View style={{ flex: 1 }}>
             <View style={s.gearNameRow}>
               <Text style={[s.gearName, { color: r.text }]} numberOfLines={1}>
-                {gear.name}
+                {displayName}
               </Text>
               {gear.equipped && (
                 <View style={[s.onBadge, { borderColor: r.border }]}>
@@ -155,8 +285,13 @@ function GearCard({ gear, colors }: { gear: RpgGear; colors: ReturnType<typeof u
                 {RARITY_LABELS[gear.rarity] ?? "COMMON"}
               </Text>
               <Text style={[s.slotLabel, { color: colors.mutedForeground }]}>
-                {gear.slot}
+                {gear.slot.replace(/_/g, " ")}
               </Text>
+              {affinity ? (
+                <Text style={[s.slotLabel, { color: "#9ed7e0" }]}>
+                  {affinity}
+                </Text>
+              ) : null}
             </View>
             {statEntries.length > 0 && (
               <View style={s.statBonusRow}>
@@ -169,9 +304,9 @@ function GearCard({ gear, colors }: { gear: RpgGear; colors: ReturnType<typeof u
                 ))}
               </View>
             )}
-            {gear.flavorText ? (
+            {lore ? (
               <Text style={[s.flavorText, { color: colors.mutedForeground }]} numberOfLines={2}>
-                "{gear.flavorText}"
+                "{lore}"
               </Text>
             ) : null}
           </View>
@@ -209,6 +344,7 @@ function GearCard({ gear, colors }: { gear: RpgGear; colors: ReturnType<typeof u
 
 function ArmoryTab({ colors }: { colors: ReturnType<typeof useColors> }) {
   const { data: armory, isLoading } = useGetArmory();
+  const [selectedSlot, setSelectedSlot] = useState<PaperDollSelection | null>(null);
 
   if (isLoading) {
     return (
@@ -227,22 +363,61 @@ function ArmoryTab({ colors }: { colors: ReturnType<typeof useColors> }) {
 
   const equipped   = sorted.filter((g) => g.equipped);
   const unequipped = sorted.filter((g) => !g.equipped);
+  const selectedGear = selectedSlot ? sorted.filter((gear) => gearMatchesPaperSlot(gear, selectedSlot)) : [];
+  const selectSlot = (slot: PaperDollSelection) => {
+    setSelectedSlot((current) => current?.slot === slot.slot ? null : slot);
+  };
 
   if (sorted.length === 0) {
     return (
-      <View style={[s.emptyBox, { borderColor: colors.border }]}>
-        <Text style={s.emptyIcon}>🛡️</Text>
-        <Text style={[s.emptyTitle, { color: colors.mutedForeground }]}>Armory is empty</Text>
-        <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>
-          Complete boss raids to receive gear drops.
-        </Text>
+      <View style={s.tabContent}>
+        <PaperDollPreview gear={[]} colors={colors} selectedSlot={selectedSlot?.slot ?? null} onSelectSlot={selectSlot} />
+        <View style={[s.emptyBox, { borderColor: colors.border }]}>
+          <Text style={s.emptyIcon}>🛡️</Text>
+          <Text style={[s.emptyTitle, { color: colors.mutedForeground }]}>Armory is empty</Text>
+          <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>
+            Complete boss raids to receive gear drops.
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={s.tabContent}>
-      {equipped.length > 0 && (
+      <PaperDollPreview gear={sorted} colors={colors} selectedSlot={selectedSlot?.slot ?? null} onSelectSlot={selectSlot} />
+
+      {selectedSlot && (
+        <View style={[s.slotPickerCard, { borderColor: "#7b552d", backgroundColor: colors.card }]}>
+          <View style={s.slotPickerHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.slotPickerTitle}>{selectedSlot.label}</Text>
+              <Text style={[s.slotPickerMeta, { color: colors.mutedForeground }]}>
+                {selectedGear.length ? `${selectedGear.length} compatible item${selectedGear.length === 1 ? "" : "s"}` : "No compatible gear found"}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setSelectedSlot(null)}
+              style={[s.showAllBtn, { borderColor: "#7b552d" }]}
+              activeOpacity={0.75}
+            >
+              <Text style={s.showAllText}>Show All</Text>
+            </TouchableOpacity>
+          </View>
+          {selectedGear.length ? (
+            selectedGear.map((g) => <GearCard key={g.id} gear={g} colors={colors} />)
+          ) : (
+            <View style={[s.emptyBox, { borderColor: colors.border, marginTop: 0, paddingVertical: 24 }]}>
+              <Text style={[s.emptyTitle, { color: colors.mutedForeground }]}>No {selectedSlot.label.toLowerCase()} pieces yet</Text>
+              <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>
+                Bosses, commissions, and Hall offerings can add gear to this section later.
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {!selectedSlot && equipped.length > 0 && (
         <>
           <Text style={[s.sectionLabel, { color: colors.mutedForeground }]}>EQUIPPED</Text>
           {equipped.map((g) => (
@@ -250,7 +425,7 @@ function ArmoryTab({ colors }: { colors: ReturnType<typeof useColors> }) {
           ))}
         </>
       )}
-      {unequipped.length > 0 && (
+      {!selectedSlot && unequipped.length > 0 && (
         <>
           <Text style={[s.sectionLabel, { color: colors.mutedForeground }]}>
             {equipped.length > 0 ? "UNEQUIPPED" : "ALL GEAR"} · {unequipped.length}
@@ -624,7 +799,16 @@ function StoreTab({ colors }: { colors: ReturnType<typeof useColors> }) {
 
 export default function InventoryScreen() {
   const [tab, setTab] = useState<SubTab>("armory");
+  const [character, setCharacter] = useState<any | null>(null);
   const colors = useColors();
+
+  useEffect(() => {
+    let cancelled = false;
+    customFetch<any>("/api/character/summary")
+      .then((data) => { if (!cancelled) setCharacter(data); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <SafeAreaView
@@ -633,7 +817,7 @@ export default function InventoryScreen() {
     >
       {/* Header */}
       <View style={[s.header, { borderBottomColor: colors.border }]}>
-        <Text style={[s.headerTitle, { color: colors.foreground }]}>Inventory</Text>
+        <Text style={[s.headerTitle, { color: colors.foreground }]}>Character</Text>
         <Text style={[s.headerSub, { color: colors.mutedForeground }]}>
           Gear · Items · Store
         </Text>
@@ -651,6 +835,22 @@ export default function InventoryScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {character && (
+          <View style={[s.identityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={s.rankBadge}>
+              <Text style={s.rankText}>{character.player?.rank ?? "E"}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.identityName, { color: colors.foreground }]}>{character.player?.name ?? "Hunter"}</Text>
+              <Text style={[s.identityMeta, { color: colors.mutedForeground }]}>
+                Level {character.player?.level ?? 1} - {character.identity?.class ?? "Unclassed Adventurer"}
+              </Text>
+              <Text style={[s.identityMeta, { color: colors.mutedForeground }]}>
+                {character.inventorySummary?.equippedGear ?? 0}/{character.gearSlots?.length ?? 9} gear slots filled
+              </Text>
+            </View>
+          </View>
+        )}
         {tab === "armory" && <ArmoryTab colors={colors} />}
         {tab === "items"  && <ItemsTab  colors={colors} />}
         {tab === "store"  && <StoreTab  colors={colors} />}
@@ -690,7 +890,167 @@ const s = StyleSheet.create({
   subTabLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 
   scroll: { padding: 12 },
+  identityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  rankBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: "#ffbf00",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rankText: { color: "#ffbf00", fontSize: 18, fontFamily: "Inter_700Bold" },
+  identityName: { fontSize: 16, fontFamily: "SpecialElite_400Regular" },
+  identityMeta: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   tabContent: { gap: 10 },
+
+  paperDollCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    padding: 10,
+    gap: 10,
+  },
+  paperDollHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  paperDollTitle: {
+    color: "#d9ad63",
+    fontSize: 17,
+    fontFamily: "SpecialElite_400Regular",
+    letterSpacing: 0.4,
+  },
+  paperDollSub: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 14,
+    marginTop: 2,
+  },
+  equippedCounter: {
+    borderWidth: 1,
+    borderColor: "#3b3328",
+    backgroundColor: "#0c0b09",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    alignItems: "flex-end",
+  },
+  counterLabel: {
+    color: "#8f887d",
+    fontSize: 8,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8,
+  },
+  counterValue: {
+    color: "#d9ad63",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    marginTop: 1,
+  },
+  paperDollImageFrame: {
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "#3b3328",
+    backgroundColor: "#000",
+    overflow: "hidden",
+  },
+  paperDollImage: {
+    width: "100%",
+    height: 560,
+  },
+  affinityPill: {
+    position: "absolute",
+    left: 8,
+    bottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#3b3328",
+    backgroundColor: "#0c0b09cc",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  affinityLabel: {
+    color: "#8f887d",
+    fontSize: 9,
+    fontFamily: "Inter_400Regular",
+  },
+  affinityValue: {
+    color: "#49a3a0",
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    textTransform: "capitalize",
+  },
+  paperSlotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  paperSlot: {
+    width: "48.8%",
+    borderWidth: 1,
+    padding: 8,
+  },
+  paperSlotLabel: {
+    fontSize: 8,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  paperSlotGlyph: {
+    marginTop: 4,
+    fontSize: 17,
+    lineHeight: 20,
+  },
+  paperSlotItem: {
+    marginTop: 2,
+    fontSize: 10,
+    fontFamily: "SpecialElite_400Regular",
+  },
+  slotPickerCard: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 10,
+  },
+  slotPickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  slotPickerTitle: {
+    color: "#d9ad63",
+    fontSize: 14,
+    fontFamily: "SpecialElite_400Regular",
+  },
+  slotPickerMeta: {
+    marginTop: 2,
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  showAllBtn: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  showAllText: {
+    color: "#d9ad63",
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+  },
 
   sectionLabel: {
     fontSize: 9,
