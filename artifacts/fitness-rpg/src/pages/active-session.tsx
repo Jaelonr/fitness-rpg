@@ -197,6 +197,36 @@ function CombatReplayModal({
               </div>
             </div>
 
+            {/* Style score breakdown */}
+            {replay?.styleScores && (() => {
+              const scores = replay.styleScores as Record<string, number>;
+              const maxScore = Math.max(1, ...Object.values(scores).map(Number));
+              const styleOrder = ["strength", "striking", "conditioning", "grappling", "recovery", "discipline"] as const;
+              const active = styleOrder.filter(s => (scores[s] ?? 0) > 0).sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0));
+              if (active.length === 0) return null;
+              return (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 space-y-2">
+                  <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">Combat Style Breakdown</p>
+                  {active.map(s => {
+                    const t = STYLE_COLORS[s]!;
+                    const pct = Math.round(((scores[s] ?? 0) / maxScore) * 100);
+                    return (
+                      <div key={s} className="flex items-center gap-2 text-[10px]">
+                        <span className={cn("w-20 shrink-0 capitalize font-mono", t.text)}>{t.label}</span>
+                        <div className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-700", t.bg.replace("/10", ""))}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right text-muted-foreground">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Verdict */}
             <div className={cn(
               "text-center py-3 border border-white/10 bg-white/5 rounded-xl font-mono text-base font-bold tracking-wide",

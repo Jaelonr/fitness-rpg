@@ -3206,6 +3206,24 @@ components:
           maximum: 10
         cosmeticKey:
           type: ["string", "null"]
+        cosmeticVariant:
+          type: ["string", "null"]
+        displayName:
+          type: ["string", "null"]
+        iconUrl:
+          type: ["string", "null"]
+        iconKey:
+          type: ["string", "null"]
+        mannequinLayerUrl:
+          type: ["string", "null"]
+        mannequinLayerKey:
+          type: ["string", "null"]
+        layerOrder:
+          type: ["integer", "null"]
+        loreText:
+          type: ["string", "null"]
+        affinity:
+          type: ["string", "null"]
         equipped:
           type: boolean
         acquiredAt:

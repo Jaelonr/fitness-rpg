@@ -1,2 +1,3 @@
 - [Fitness RPG architecture](fitness-rpg-arch.md) — key design decisions: orval config, shared progression engine, api-zod fix
 - [Clerk auth integration](clerk-auth-integration.md) — multi-user setup: clerkId on player table, requireAuth middleware, bulk route update pattern
+- [RPG upgrade state](rpg-upgrade-state.md) — what's built: combat engine, 145 store items, all routes, OpenAPI gaps patched

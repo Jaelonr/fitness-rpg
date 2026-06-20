@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useGetInventory, useGetStoreItems, usePurchaseStoreItem,
   useGetArmory, useEquipGear, useGetStoreSections,
+  useGetPlayerStyleIdentity,
   customFetch,
   type RpgGear,
 } from "@workspace/api-client-react";
@@ -384,6 +385,9 @@ export default function Inventory() {
   const { data: sections, isLoading: isLoadingSections } = useGetStoreSections({
     query: { queryKey: ["/api/store/sections"] },
   });
+  const { data: styleIdentity } = useGetPlayerStyleIdentity({
+    query: { queryKey: ["/api/player/style-identity"] },
+  });
   const purchase = usePurchaseStoreItem();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -460,6 +464,11 @@ export default function Inventory() {
   const weeklyItems = sections?.weekly    ?? [];
   const permItems   = sections?.permanent ?? [];
   const raidItems   = sections?.raid      ?? [];
+
+  const dominantStyle = styleIdentity?.dominantStyle as string | null | undefined;
+  const styleForYou   = dominantStyle
+    ? permItems.filter((i: any) => i.styleAffinity === dominantStyle).slice(0, 4)
+    : [];
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-10">
@@ -639,7 +648,32 @@ export default function Inventory() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="permanent" className="mt-0">
+              <TabsContent value="permanent" className="mt-0 space-y-4">
+                {styleForYou.length > 0 && (() => {
+                  const STYLE_BADGE: Record<string, string> = {
+                    strength: "text-red-400 border-red-400/40",
+                    striking: "text-orange-400 border-orange-400/40",
+                    conditioning: "text-cyan-400 border-cyan-400/40",
+                    grappling: "text-purple-400 border-purple-400/40",
+                    recovery: "text-green-400 border-green-400/40",
+                    discipline: "text-yellow-400 border-yellow-400/40",
+                  };
+                  const badge = STYLE_BADGE[dominantStyle!] ?? "text-primary border-primary/40";
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 px-0.5">
+                        <span className={cn("text-[9px] font-mono uppercase tracking-[0.2em] border px-2 py-0.5 capitalize", badge)}>
+                          ⚔ Your Style: {dominantStyle}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">Recommended items</span>
+                      </div>
+                      {styleForYou.map((item: any) => (
+                        <StoreItemCard key={item.id} item={item} onBuy={handlePurchase} isPending={purchase.isPending} />
+                      ))}
+                      <div className="border-t border-border/20 pt-1" />
+                    </div>
+                  );
+                })()}
                 <StoreSection items={permItems} purchase={purchase} onBuy={handlePurchase} />
               </TabsContent>
 

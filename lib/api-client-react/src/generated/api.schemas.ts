@@ -1290,6 +1290,24 @@ export interface RpgGear {
   xpBonusPercent?: number;
   /** @nullable */
   cosmeticKey?: string | null;
+  /** @nullable */
+  cosmeticVariant?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  iconUrl?: string | null;
+  /** @nullable */
+  iconKey?: string | null;
+  /** @nullable */
+  mannequinLayerUrl?: string | null;
+  /** @nullable */
+  mannequinLayerKey?: string | null;
+  /** @nullable */
+  layerOrder?: number | null;
+  /** @nullable */
+  loreText?: string | null;
+  /** @nullable */
+  affinity?: string | null;
   equipped: boolean;
   acquiredAt: string;
 }
