@@ -31,7 +31,12 @@ function buildFallbackGuildMasterReply(content: string, context: Awaited<ReturnT
   const latestMemory = context.memories[0]?.summary;
   const latestWorldEvent = context.worldEvents[0];
 
-  if (question.includes("system") || question.includes("aethoria") || question.includes("world") || question.includes("sovereign") || question.includes("gate")) {
+  if (question.includes("system")) {
+    const memory = latestMemory ? `I have not forgotten this: ${latestMemory}` : "The Hall has only begun to learn your pattern.";
+    return `That word is yours, Hunter, not a truth the Guild can swear to. I know you were summoned, and I know the Gates and omens around you do not behave like ordinary magic. I will not pretend to know who called you here, what force marked you, or whether any person stood behind it. ${memory}\n\nWhat the Guild can name is simpler: you are here, Aethoria is under pressure, and your recorded actions are changing what you can survive. If you tell me what this "System" shows you, I will weigh it against the Guild's ledgers, but I will not dress ignorance as certainty.`;
+  }
+
+  if (question.includes("aethoria") || question.includes("world") || question.includes("sovereign") || question.includes("gate") || question.includes("danger")) {
     const threat = latestWorldEvent
       ? `${latestWorldEvent.title}: ${latestWorldEvent.description}`
       : "No lasting catastrophe is written in your ledger today, but the Sovereign remains the name our records give to the force that feeds on stagnation.";
@@ -39,7 +44,7 @@ function buildFallbackGuildMasterReply(content: string, context: Awaited<ReturnT
       ? `${context.activeRaidCount} active gate incursion is on the board.`
       : "No active gate incursion is marked for you right now.";
     const memory = latestMemory ? `I have not forgotten this: ${latestMemory}` : "The Hall has only begun to learn your pattern.";
-    return `Here is the state of Aethoria as the Guild can honestly name it. ${threat} ${raid} The System is still a mystery, Hunter. It measures growth and opens roads, but its maker and final intent are not known to me. ${memory}\n\nWorld pressure is ${pressure}. That means I can answer your questions, but if danger rises, I will steer us back to the next duty quickly. The Sovereign is not beaten by talk. It is beaten by repeated, recorded action.`;
+    return `Here is the state of Aethoria as the Guild can honestly name it. ${threat} ${raid} ${memory}\n\nGuild pressure is ${pressure}. That is not an exact measure, only what our scouts, healers, ledgers, and Gate reports suggest. I can answer your questions, but if danger rises, I will steer us back to the next duty quickly. The Sovereign is not beaten by talk. It is beaten by repeated, recorded action.`;
   }
 
   if (question.includes("miss") || question.includes("failed") || question.includes("behind")) {
@@ -50,7 +55,7 @@ function buildFallbackGuildMasterReply(content: string, context: Awaited<ReturnT
     return "Pain changes the order of the day. Do not train through alarming symptoms or sharp worsening pain. Reduce the task to recovery, mobility, walking, hydration, and food you can actually keep consistent. If the pain is severe, unusual, or frightening, speak with a qualified professional.";
   }
 
-  return "The Guild's scrying archive is quiet, so I will speak plainly. Ask me about Aethoria, the System, your record, your training, your food, your recovery, or the next duty, and I will answer from the ledger we have. For now: complete the next safe action within reach, record it honestly, and return with facts.";
+  return "The Guild's scrying archive is quiet, so I will speak plainly. Ask me about Aethoria, the Gates, your record, your training, your food, your recovery, or the next duty, and I will answer from the ledger we have. For now: complete the next safe action within reach, record it honestly, and return with facts.";
 }
 
 // ── Context Builder ───────────────────────────────────────────────────────────
@@ -244,8 +249,9 @@ Stay completely in-world. The logbook holds guild records, not fitness data.`,
 
 APP AND WORLD:
 - The app is Ascension Quest: Legends of Aethoria.
-- The Hunter was summoned by the mysterious System, an unknown force that marks, measures, and advances summoned fighters through quests, ranks, rewards, and Gates.
-- The Hunter does not fully understand the System. Aldric has studied it for decades but does not pretend to know its origin.
+- The Hunter was summoned into Aethoria. Aldric knows the Hunter is not of this world, but he does not know who or what caused the summoning.
+- The Hunter may report seeing a mysterious "System." Aldric does not know that term as verified Guild truth and must not explain its origin, rules, interface, danger readings, or intent as fact.
+- Aldric may discuss what the Guild has observed: unusual marks, Gate pressure, omens, the Hunter's recorded growth, and the practical effects of completed duties.
 - Aethoria is threatened by a great enemy known in current guild records as the Sovereign, an intelligence tied to stagnation, complacency, and the refusal to grow.
 - Gates are ruptures where hostile forces, trials, and corrupted places spill into the world.
 - The Guild Hall is a living or semi-living magical institution bound to Aldric's past. It is not merely a building or shop.
@@ -262,13 +268,14 @@ CHARACTER:
 - He oversees the entire guild: merchants, scholars, healers, expedition leaders. He is busy — but he makes time.
 
 DIRECT QUESTIONS:
-- You may answer direct questions about Aethoria, the System, Gates, the Sovereign, the Guild, Hall offerings, campaign state, the Hunter's record, training, nutrition, recovery, gear, titles, and what should be done next.
+- You may answer direct questions about Aethoria, Gates, the Sovereign, the Guild, Hall offerings, campaign state, the Hunter's record, training, nutrition, recovery, gear, titles, and what should be done next.
+- If asked about the System, say Aldric does not know it as confirmed Guild truth. He may cautiously discuss the Hunter's summoning, the Hunter's own reports, and observable effects, but he must not claim to know the System's maker, mechanics, measurements, or intent.
+- If asked about exact world danger, say the Hunter may see things the Guild cannot. Aldric can only speak from Guild reports: Gate pressure, active threats, losses, scout reports, omens, and readiness.
 - Answer like a knowledgeable in-world mentor, not a menu or generic chatbot.
 - When the question asks about facts outside the record, clearly separate what the Guild knows from what Aldric suspects.
 - If the Hunter asks idle small talk while world pressure is high, be brief and redirect toward the next meaningful duty.
 - If world pressure is low or the Sovereign has fallen, you may allow more reflective conversation and personal warmth.
 - Do not invent personal memories, destroyed locations, named allies, injuries, victories, or lore revelations that are not in the record.
-- If asked about the System's true origin, say the truth is not yet known. Offer the strongest current Guild theory without presenting it as certainty.
 
 HUMILITY (use occasionally, not always):
 - "This is the course I would choose, Hunter — but the decision is yours."
@@ -489,7 +496,7 @@ router.post("/guild-master/messages", async (req, res) => {
     if (!res.headersSent) {
       res.status(503).json({ error: "The Guildmaster is temporarily unavailable" });
     } else {
-      const fallback = "The Guild's scrying archive is quiet, so I will speak plainly: ask about Aethoria, the System, your record, or the next duty, and I will answer from the ledger we have. Complete the next safe action within reach, record it honestly, and do not train through alarming pain.";
+      const fallback = "The Guild's scrying archive is quiet, so I will speak plainly: ask about Aethoria, the Gates, your record, or the next duty, and I will answer from the ledger we have. Complete the next safe action within reach, record it honestly, and do not train through alarming pain.";
       res.write(`data: ${JSON.stringify({ content: fallback, fallback: true })}\n\n`);
       res.write(`data: ${JSON.stringify({ done: true, fallback: true })}\n\n`);
       res.end();

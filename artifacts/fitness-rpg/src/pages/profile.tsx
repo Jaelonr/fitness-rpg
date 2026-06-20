@@ -266,7 +266,7 @@ export default function Profile() {
       <AethoriaPanel accent className="flex items-start gap-3">
         <Info className="mt-0.5 size-4 shrink-0 text-[#d9ad63]" />
         <p className="text-xs leading-relaxed text-[#cfc5b8]">
-          The System uses this record to set fair commissions, recommend training loads, and help Aldric avoid assigning unsafe work.
+          The System uses this record to set fair commissions and recommend training loads. The Guild ledger receives only the practical details needed to avoid unsafe work.
         </p>
       </AethoriaPanel>
 

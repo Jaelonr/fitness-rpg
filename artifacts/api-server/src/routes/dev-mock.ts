@@ -674,8 +674,8 @@ router.post("/guild-master/messages", (req, res) => {
   const reply = !content
     ? "Speak plainly, hunter. The guild rewards action."
     : lower.includes("system") || lower.includes("aethoria") || lower.includes("world") || lower.includes("sovereign") || lower.includes("gate")
-      ? "Here is the state of Aethoria as the Guild can honestly name it. The System summoned you, measures your growth, and opens paths through quests and Gates, but its origin is still unknown. The Sovereign remains the great enemy in our records: not merely a monster, but a force that feeds on stagnation. Your current ledger shows no active catastrophe, which gives us room to speak, plan, and build readiness before the next rupture."
-      : `I hear you: "${content}". Good. I can answer plainly about Aethoria, the System, your record, or the next duty. Then we turn the answer into one completed action before the day ends.`;
+      ? "Here is the state of Aethoria as the Guild can honestly name it. You were summoned, and the signs around you are not ordinary magic, but I will not pretend to know who or what called you here. The Sovereign remains the great enemy in our records: not merely a monster, but a force that feeds on stagnation. Your current ledger shows no active catastrophe, which gives us room to speak, plan, and build readiness before the next rupture."
+      : `I hear you: "${content}". Good. I can answer plainly about Aethoria, the Gates, your summoning, your record, or the next duty. Then we turn the answer into one completed action before the day ends.`;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
