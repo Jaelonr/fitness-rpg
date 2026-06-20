@@ -24,6 +24,7 @@ import type {
   AnalyticsOverview,
   BossRaid,
   CampaignQuestStatus,
+  CampaignStory,
   ChangeClass200,
   CharacterSummary,
   ChronicleSummary,
@@ -6446,6 +6447,83 @@ export const useSendGuildMasterMessage = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSendGuildMasterMessageMutationOptions(options));
     }
+
+export const getGetCampaignStoryUrl = () => {
+
+
+
+
+  return `/api/campaign/story`
+}
+
+/**
+ * @summary Get full campaign story progress grouped by chapter
+ */
+export const getCampaignStory = async ( options?: RequestInit): Promise<CampaignStory> => {
+
+  return customFetch<CampaignStory>(getGetCampaignStoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCampaignStoryQueryKey = () => {
+    return [
+    `/api/campaign/story`
+    ] as const;
+    }
+
+
+export const getGetCampaignStoryQueryOptions = <TData = Awaited<ReturnType<typeof getCampaignStory>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCampaignStory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCampaignStoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCampaignStory>>> = ({ signal }) => getCampaignStory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCampaignStory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCampaignStoryQueryResult = NonNullable<Awaited<ReturnType<typeof getCampaignStory>>>
+export type GetCampaignStoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get full campaign story progress grouped by chapter
+ */
+
+export function useGetCampaignStory<TData = Awaited<ReturnType<typeof getCampaignStory>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCampaignStory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCampaignStoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetGuildMasterCampaignQuestsUrl = () => {
 

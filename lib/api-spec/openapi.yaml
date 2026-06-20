@@ -1620,6 +1620,19 @@ paths:
           content:
             text/event-stream: {}
 
+  /campaign/story:
+    get:
+      operationId: getCampaignStory
+      tags: [quests]
+      summary: Get full campaign story progress grouped by chapter
+      responses:
+        "200":
+          description: Campaign story state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignStory"
+
   /guild-master/campaign-quests:
     get:
       operationId: getGuildMasterCampaignQuests
@@ -3420,6 +3433,68 @@ components:
           type: string
         conversationId:
           type: integer
+
+    CampaignStoryQuest:
+      type: object
+      required: [campaignId, title, description, xpReward, goldReward, status]
+      properties:
+        campaignId:
+          type: integer
+        dbId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+        lore:
+          type: string
+          nullable: true
+        difficulty:
+          type: string
+          nullable: true
+        fitnessMapping:
+          type: string
+          nullable: true
+        xpReward:
+          type: integer
+        goldReward:
+          type: integer
+        status:
+          type: string
+          enum: [active, completed, claimed, locked]
+
+    CampaignStoryChapter:
+      type: object
+      required: [chapter, chapterName, status, quests]
+      properties:
+        chapter:
+          type: integer
+        chapterName:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, locked]
+        quests:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignStoryQuest"
+
+    CampaignStory:
+      type: object
+      required: [currentChapter, totalChapters, chapters]
+      properties:
+        currentChapter:
+          type: integer
+        currentQuestTitle:
+          type: string
+          nullable: true
+        totalChapters:
+          type: integer
+        chapters:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignStoryChapter"
 
     CampaignQuestStatus:
       type: object

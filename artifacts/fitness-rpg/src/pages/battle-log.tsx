@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { customFetch, useGetBattleLog, useGetPlayerStyleIdentity } from "@workspace/api-client-react";
+import { customFetch, useGetBattleLog, useGetPlayerStyleIdentity, useGetCampaignStory, type CampaignStoryQuest, type CampaignStoryChapter } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  BookOpen, Boxes, Coins, Flag, Footprints, Landmark, Lock, Map, Medal, Minus,
-  Plus, RotateCcw, ScrollText, Shield, Sparkles, Swords, Trophy, Zap,
+  BookOpen, Boxes, Coins, ChevronDown, ChevronRight, Flag, Footprints,
+  Gift, Landmark, Lock, Map, Medal, Minus, Plus, RotateCcw, ScrollText,
+  Shield, Sparkles, Swords, Trophy, Zap,
 } from "lucide-react";
 
 const STYLE_META: Record<string, { label: string; text: string; bg: string; border: string }> = {
@@ -126,6 +127,109 @@ function ReplayCard({ replay }: { replay: any }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+const DIFF_COLOR: Record<string, string> = {
+  E: "text-gray-400 border-gray-600/40", D: "text-green-400 border-green-600/40",
+  C: "text-blue-400 border-blue-600/40",  B: "text-purple-400 border-purple-600/40",
+  A: "text-orange-400 border-orange-600/40", S: "text-[#d9ad63] border-[#d9ad63]/40",
+};
+const STORY_STATUS: Record<string, { label: string; color: string; Icon: React.ElementType }> = {
+  claimed:   { label: "Completed",    color: "text-green-400",   Icon: Zap },
+  completed: { label: "Claim Reward", color: "text-[#d9ad63]",  Icon: Gift },
+  active:    { label: "In Progress",  color: "text-[#49a3a0]",  Icon: Swords },
+  locked:    { label: "???",          color: "text-[#6b5d4f]",  Icon: Lock },
+};
+
+function CampaignQuestRow({ quest }: { quest: CampaignStoryQuest }) {
+  const [open, setOpen] = useState(quest.status === "active" || quest.status === "completed");
+  const s = STORY_STATUS[quest.status] ?? STORY_STATUS.locked;
+  const isLocked = quest.status === "locked";
+  return (
+    <div className={cn("border-b border-[#3b3328] last:border-b-0", isLocked && "opacity-50")}>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+        <s.Icon className={cn("size-3.5 shrink-0", s.color)} />
+        <div className="min-w-0 flex-1">
+          <p className={cn("font-serif text-sm font-bold", isLocked ? "text-[#6b5d4f]" : "text-[#d8c4a5]")}>{quest.title}</p>
+          <p className={cn("text-[10px]", s.color)}>{s.label}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {quest.difficulty && <span className={cn("border px-1 text-[10px] font-mono", DIFF_COLOR[quest.difficulty] ?? "")}>{quest.difficulty}</span>}
+          {open ? <ChevronDown className="size-3 text-[#8f887d]" /> : <ChevronRight className="size-3 text-[#8f887d]" />}
+        </div>
+      </button>
+      {open && (
+        <div className="border-t border-[#3b3328] bg-[#0c0b09] px-4 pb-4 pt-3 space-y-2">
+          <p className={cn("text-xs leading-relaxed", isLocked ? "italic text-[#6b5d4f]" : "text-[#b7ab9c]")}>{quest.description}</p>
+          {quest.lore && (
+            <div className="border-l-2 border-[#9d3e2a]/60 bg-[#1b1511] px-3 py-2">
+              <p className="text-[9px] uppercase tracking-widest text-[#9d8f80] mb-1">Guild Lore</p>
+              <p className="text-xs italic leading-relaxed text-[#cfc5b8]">{quest.lore}</p>
+            </div>
+          )}
+          {quest.fitnessMapping && !isLocked && (
+            <p className="text-[10px] text-[#8f887d]"><span className="font-mono text-[#9d8f80]">Objective:</span> {quest.fitnessMapping}</p>
+          )}
+          <div className="flex gap-4 text-[10px] font-mono">
+            <span className="text-[#49a3a0]">+{quest.xpReward} XP</span>
+            <span className="text-[#d7a54d]">+{quest.goldReward} Gold</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CampaignChapterBlock({ chapter, defaultOpen }: { chapter: CampaignStoryChapter; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isLocked = chapter.status === "locked";
+  const done = chapter.quests.filter(q => q.status === "claimed").length;
+  const revealed = chapter.quests.filter(q => q.status !== "locked").length;
+  return (
+    <Card className={cn("rounded-none", isLocked ? "border-[#2a2520]" : "border-[#6b4d2f]", "bg-[#11100e]")}>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-3 p-4 text-left">
+        <div className={cn("flex size-7 items-center justify-center border font-mono text-xs font-bold shrink-0",
+          chapter.status === "completed" ? "border-green-600/40 text-green-400" :
+          chapter.status === "active"    ? "border-[#d9ad63]/40 text-[#d9ad63]" :
+                                          "border-[#3b3328] text-[#6b5d4f]",
+        )}>
+          {chapter.status === "completed" ? "✓" : isLocked ? "?" : chapter.chapter}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={cn("font-serif text-sm font-bold", isLocked ? "text-[#6b5d4f]" : "text-[#d9ad63]")}>
+            {isLocked ? `Chapter ${chapter.chapter} — ???` : `Ch. ${chapter.chapter}: ${chapter.chapterName}`}
+          </p>
+          {!isLocked && <p className="text-[10px] text-[#8f887d]">{done}/{revealed} complete</p>}
+        </div>
+        {open ? <ChevronDown className="size-4 text-[#8f887d] shrink-0" /> : <ChevronRight className="size-4 text-[#8f887d] shrink-0" />}
+      </button>
+      {open && (
+        <div className="border-t border-[#3b3328]">
+          {chapter.quests.map(q => <CampaignQuestRow key={q.campaignId} quest={q} />)}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CampaignChronicleView() {
+  const { data: story, isLoading } = useGetCampaignStory({ query: { queryKey: ["/api/campaign/story"] } });
+  if (isLoading) return <><Skeleton className="h-14 w-full rounded-none bg-[#171510]" /><Skeleton className="mt-2 h-14 w-full rounded-none bg-[#171510]" /></>;
+  if (!story) return <EmptyRecord icon={Flag} title="No campaign entries yet" text="Aethoria's larger movements will be recorded here as threats are revealed." />;
+  return (
+    <div className="space-y-2">
+      <div className="border border-[#6b4d2f]/50 bg-[#11100e] px-4 py-3">
+        <p className="text-[9px] uppercase tracking-widest text-[#8f887d] mb-0.5 font-mono">Current Position</p>
+        <p className="font-serif text-sm font-bold text-[#d9ad63]">
+          Chapter {story.currentChapter}
+          {story.currentQuestTitle && <span className="font-normal text-[#b7ab9c]"> — {story.currentQuestTitle}</span>}
+        </p>
+      </div>
+      {story.chapters.map(ch => (
+        <CampaignChapterBlock key={ch.chapter} chapter={ch} defaultOpen={ch.status === "active"} />
+      ))}
+    </div>
   );
 }
 
@@ -289,10 +393,7 @@ export default function BattleLog() {
         </TabsContent>
 
         <TabsContent value="campaign" className="space-y-3 pt-3">
-          {(chronicle?.campaignProgress ?? []).map((quest) => (
-            <Card key={quest.id} className="border-[#3b3328] bg-[#11100e]"><CardContent className="p-4"><p className="font-serif text-sm font-bold text-[#d9ad63]">{quest.title}</p><p className="mt-1 text-xs text-[#8f887d]">{quest.description}</p><Badge className="mt-3 bg-[#3b3328] text-[#d8c4a5]">{quest.status}</Badge></CardContent></Card>
-          ))}
-          {!(chronicle?.campaignProgress ?? []).length && <EmptyRecord icon={Flag} title="No campaign entries yet" text="Aethoria's larger movements will be recorded here as threats are revealed." />}
+          <CampaignChronicleView />
         </TabsContent>
 
         <TabsContent value="items" className="space-y-3 pt-3">

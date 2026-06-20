@@ -1442,6 +1442,52 @@ export interface GuildMasterMessageInput {
   conversationId: number;
 }
 
+export type CampaignStoryQuestStatus = typeof CampaignStoryQuestStatus[keyof typeof CampaignStoryQuestStatus];
+
+
+export const CampaignStoryQuestStatus = {
+  active: 'active',
+  completed: 'completed',
+  claimed: 'claimed',
+  locked: 'locked',
+} as const;
+
+export interface CampaignStoryQuest {
+  campaignId: number;
+  dbId?: number | null;
+  title: string;
+  description: string;
+  lore?: string | null;
+  difficulty?: string | null;
+  fitnessMapping?: string | null;
+  xpReward: number;
+  goldReward: number;
+  status: CampaignStoryQuestStatus;
+}
+
+export type CampaignStoryChapterStatus = typeof CampaignStoryChapterStatus[keyof typeof CampaignStoryChapterStatus];
+
+
+export const CampaignStoryChapterStatus = {
+  active: 'active',
+  completed: 'completed',
+  locked: 'locked',
+} as const;
+
+export interface CampaignStoryChapter {
+  chapter: number;
+  chapterName: string;
+  status: CampaignStoryChapterStatus;
+  quests: CampaignStoryQuest[];
+}
+
+export interface CampaignStory {
+  currentChapter: number;
+  currentQuestTitle?: string | null;
+  totalChapters: number;
+  chapters: CampaignStoryChapter[];
+}
+
 export type CampaignQuestStatusStatus = typeof CampaignQuestStatusStatus[keyof typeof CampaignQuestStatusStatus];
 
 

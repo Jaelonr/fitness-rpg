@@ -2200,6 +2200,33 @@ export const SendGuildMasterMessageBody = zod.object({
 
 
 /**
+ * @summary Get full campaign story progress grouped by chapter
+ */
+export const GetCampaignStoryResponse = zod.object({
+  "currentChapter": zod.number(),
+  "currentQuestTitle": zod.string().nullish(),
+  "totalChapters": zod.number(),
+  "chapters": zod.array(zod.object({
+  "chapter": zod.number(),
+  "chapterName": zod.string(),
+  "status": zod.enum(['active', 'completed', 'locked']),
+  "quests": zod.array(zod.object({
+  "campaignId": zod.number(),
+  "dbId": zod.number().nullish(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "lore": zod.string().nullish(),
+  "difficulty": zod.string().nullish(),
+  "fitnessMapping": zod.string().nullish(),
+  "xpReward": zod.number(),
+  "goldReward": zod.number(),
+  "status": zod.enum(['active', 'completed', 'claimed', 'locked'])
+}))
+}))
+})
+
+
+/**
  * @summary Get campaign quest status records for the authenticated player
  */
 export const GetGuildMasterCampaignQuestsResponseItem = zod.object({
