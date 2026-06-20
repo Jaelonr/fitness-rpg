@@ -197,7 +197,7 @@ function GuildMasterDialog({ open, onOpenChange, initialReport }: {
     : null);
   const suggestedQuestions = [
     "What is the state of Aethoria?",
-    "What does the Guild know about the System?",
+    "What does the Guild know about my summoning?",
     "What should I do next?",
   ];
 
@@ -219,7 +219,7 @@ function GuildMasterDialog({ open, onOpenChange, initialReport }: {
         <div className="border border-[#3b3328] bg-[#0c0b09] p-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-[#8f887d]">Private audience</p>
           <p className="mt-1 text-xs leading-relaxed text-[#cfc5b8]">
-            Aldric can answer direct questions about Aethoria, the System, the Sovereign, your record, or the next duty. If the Gates worsen, he will keep idle talk short.
+            Aldric can answer direct questions about Aethoria, the Gates, the Sovereign, your record, or the next duty. If the Gates worsen, he will keep idle talk short.
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {suggestedQuestions.map((question) => (
@@ -250,7 +250,7 @@ function GuildMasterDialog({ open, onOpenChange, initialReport }: {
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Ask Aldric about Aethoria, the System, your record, or the next duty..."
+            placeholder="Ask Aldric about Aethoria, the Gates, your record, or the next duty..."
             className="min-h-20 resize-none border-[#4a4032] bg-[#171510]"
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {

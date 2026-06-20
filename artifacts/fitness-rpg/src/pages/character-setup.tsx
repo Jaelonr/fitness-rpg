@@ -582,7 +582,7 @@ export default function CharacterSetup() {
                     Confirm the vessel brought through the Gate.
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    The System records only what Aldric needs to set fair commissions, nutrition targets, and equipment-aware training. Imperial units are the default; metric can be selected in Settings.
+                    The System records only what the Guild ledger needs for fair commissions, nutrition targets, and equipment-aware training. Imperial units are the default; metric can be selected in Settings.
                   </p>
                 </div>
 
