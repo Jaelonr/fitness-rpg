@@ -3,6 +3,8 @@ modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+build = ["sh", "-c", "pnpm install --frozen-lockfile && pnpm run deploy:build"]
+run = ["sh", "-c", "NODE_ENV=production DEV_MOCK_API=false DEV_AUTH_BYPASS=false VITE_DEV_AUTH_BYPASS=false pnpm run deploy:start"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]

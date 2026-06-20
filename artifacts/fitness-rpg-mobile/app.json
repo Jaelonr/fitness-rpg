@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Fitness RPG — Mobile",
+    "name": "Ascension Quest",
     "slug": "fitness-rpg-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -36,3 +36,4 @@
     }
   }
 }
+
